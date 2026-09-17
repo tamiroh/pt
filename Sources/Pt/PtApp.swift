@@ -15,7 +15,7 @@ struct PtApp {
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private let walkerView = WalkerView(frame: NSRect(x: 0, y: 0, width: 48, height: 56))
+    private let walkerView = WalkerView(frame: NSRect(origin: .zero, size: WalkerView.size))
     private var window: NSWindow!
     private var statusItem: NSStatusItem!
     private var timer: Timer?

@@ -2,6 +2,11 @@ import AppKit
 
 @MainActor
 final class WalkerView: NSView {
+    static let scale: CGFloat = 0.05
+    static var size: NSSize {
+        NSSize(width: 400 * scale + 20, height: 700 * scale + 7)
+    }
+
     var swing: Double = 0
     var direction: Double = -1
     var standing = false
@@ -14,11 +19,11 @@ final class WalkerView: NSView {
         context.saveGState()
         defer { context.restoreGState() }
 
-        context.translateBy(x: bounds.midX, y: 4)
-        context.scaleBy(x: direction < 0 ? 0.07 : -0.07, y: -0.07)
+        context.translateBy(x: bounds.midX, y: 50 * Self.scale + 0.5)
+        context.scaleBy(x: direction < 0 ? Self.scale : -Self.scale, y: -Self.scale)
         context.setStrokeColor(NSColor(white: 171.0 / 255, alpha: 1).cgColor)
         context.setFillColor(NSColor.white.cgColor)
-        context.setLineWidth(2 / 0.07)
+        context.setLineWidth(2 / Self.scale)
         context.setLineCap(.round)
         context.setLineJoin(.round)
 
