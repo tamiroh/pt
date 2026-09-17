@@ -10,8 +10,39 @@ final class WalkerView: NSView {
     var swing: Double = 0
     var direction: Double = -1
     var standing = false
+    var onDragStarted: (() -> Void)?
+    var onDragEnded: (() -> Void)?
+    private var dragOffset: NSPoint?
 
     override var isOpaque: Bool { false }
+
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func mouseDown(with event: NSEvent) {
+        guard let window else { return }
+        let pointer = window.convertPoint(toScreen: event.locationInWindow)
+        dragOffset = NSPoint(x: pointer.x - window.frame.minX,
+                             y: pointer.y - window.frame.minY)
+        onDragStarted?()
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard let window, let dragOffset else { return }
+        let pointer = window.convertPoint(toScreen: event.locationInWindow)
+        window.setFrameOrigin(NSPoint(x: pointer.x - dragOffset.x,
+                                      y: pointer.y - dragOffset.y))
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        guard dragOffset != nil else { return }
+        mouseDragged(with: event)
+        dragOffset = nil
+        onDragEnded?()
+    }
+
+    override func resetCursorRects() {
+        addCursorRect(bounds, cursor: .openHand)
+    }
 
     override func draw(_ dirtyRect: NSRect) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }

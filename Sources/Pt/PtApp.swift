@@ -23,6 +23,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var ground = NSRect.zero
     private var previousTime = CACurrentMediaTime()
     private var paused = false
+    private var dragging = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         window = NSWindow(contentRect: walkerView.bounds, styleMask: [.borderless],
@@ -30,11 +31,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.isOpaque = false
         window.backgroundColor = .clear
         window.hasShadow = false
-        window.ignoresMouseEvents = true
+        window.ignoresMouseEvents = false
         window.level = .floating
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         window.isReleasedWhenClosed = false
         window.contentView = walkerView
+        walkerView.onDragStarted = { [weak self] in self?.beginDragging() }
+        walkerView.onDragEnded = { [weak self] in self?.endDragging() }
         updateScreen()
         walker.x = max(0, (ground.width - walkerView.bounds.width) / 2)
         displayWalker()
@@ -68,9 +71,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func updateScreen() {
-        // The first screen is the primary display, independent of keyboard focus.
-        guard let screen = NSScreen.screens.first else { return }
+        guard let screen = window.screen ?? NSScreen.screens.first else { return }
         ground = screen.visibleFrame
+        guard !dragging else { return }
         walker.constrain(to: ground.width - walkerView.bounds.width)
         displayWalker()
     }
@@ -78,19 +81,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func tick() {
         let now = CACurrentMediaTime()
         defer { previousTime = now }
-        guard !paused else { return }
+        guard !dragging else { return }
         // Avoid teleporting after sleep or a stalled run loop.
         walker.advance(seconds: min(max(0, now - previousTime), 0.1),
-                     width: ground.width - walkerView.bounds.width)
+                       width: ground.width - walkerView.bounds.width, walking: !paused)
         displayWalker()
     }
 
     private func displayWalker() {
-        window.setFrameOrigin(NSPoint(x: ground.minX + walker.x, y: ground.minY))
+        if !dragging {
+            window.setFrameOrigin(NSPoint(x: ground.minX + walker.x,
+                                          y: ground.minY + walker.height))
+        }
         walkerView.swing = walker.swing
         walkerView.direction = walker.direction
-        walkerView.standing = paused
+        walkerView.standing = paused || dragging || walker.isFalling
         walkerView.needsDisplay = true
+    }
+
+    private func beginDragging() {
+        dragging = true
+        displayWalker()
+    }
+
+    private func endDragging() {
+        if let screen = window.screen ?? NSScreen.screens.first {
+            ground = screen.visibleFrame
+        }
+        walker.x = window.frame.minX - ground.minX
+        walker.constrain(to: ground.width - walkerView.bounds.width)
+        walker.drop(from: window.frame.minY - ground.minY)
+        dragging = false
+        previousTime = CACurrentMediaTime()
+        displayWalker()
     }
 
     @objc private func togglePause(_ sender: NSMenuItem) {
