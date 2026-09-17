@@ -24,6 +24,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var previousTime = CACurrentMediaTime()
     private var paused = false
     private var dragging = false
+    private var platforms: [WindowPlatform] = []
+    private var nextPlatformRefresh: CFTimeInterval = 0
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         window = NSWindow(contentRect: walkerView.bounds, styleMask: [.borderless],
@@ -73,6 +75,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func updateScreen() {
         guard let screen = window.screen ?? NSScreen.screens.first else { return }
         ground = screen.visibleFrame
+        nextPlatformRefresh = 0
         guard !dragging else { return }
         walker.constrain(to: ground.width - walkerView.bounds.width)
         displayWalker()
@@ -83,8 +86,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         defer { previousTime = now }
         guard !dragging else { return }
         // Avoid teleporting after sleep or a stalled run loop.
+        if now >= nextPlatformRefresh {
+            platforms = WindowPlatforms().read(ground: ground, walkerSize: walkerView.bounds.size)
+            nextPlatformRefresh = now + 0.1
+        }
         walker.advance(seconds: min(max(0, now - previousTime), 0.1),
-                       width: ground.width - walkerView.bounds.width, walking: !paused)
+                       width: ground.width - walkerView.bounds.width, walking: !paused,
+                       platforms: platforms)
         displayWalker()
     }
 
@@ -112,6 +120,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         walker.constrain(to: ground.width - walkerView.bounds.width)
         walker.drop(from: window.frame.minY - ground.minY)
         dragging = false
+        nextPlatformRefresh = 0
         previousTime = CACurrentMediaTime()
         displayWalker()
     }
