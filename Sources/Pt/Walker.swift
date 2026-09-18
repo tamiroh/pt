@@ -9,15 +9,25 @@ struct Walker {
     private(set) var height: Double = 0
     private var fallSpeed: Double = 0
     private var support: WindowPlatform?
+    private var departedPlatformID: UInt32?
+    private var randomNumberGenerator: any RandomNumberGenerator
     let speed: Double = 27
 
     var swing: Double { sin(distance / 26 * .pi) * 10 }
     var isFalling: Bool { height > 0 && support == nil }
 
+    init(x: Double = 0, direction: Double = -1,
+         randomNumberGenerator: any RandomNumberGenerator = SystemRandomNumberGenerator()) {
+        self.x = x
+        self.direction = direction
+        self.randomNumberGenerator = randomNumberGenerator
+    }
+
     mutating func drop(from height: Double) {
         self.height = max(0, height)
         fallSpeed = 0
         support = nil
+        departedPlatformID = nil
     }
 
     mutating func advance(seconds: Double, width: Double, walking: Bool = true,
@@ -30,6 +40,11 @@ struct Walker {
         let left = max(0, span.lowerBound)
         let right = min(width, span.upperBound)
         guard right > left else { return }
+        if support != nil {
+            walkOnPlatform(seconds: walkingTime, left: left, right: right,
+                           width: width, platforms: platforms)
+            return
+        }
         let spanWidth = right - left
         let travel = speed * walkingTime
         distance = (distance + travel).truncatingRemainder(dividingBy: 52)
@@ -38,6 +53,33 @@ struct Walker {
             .truncatingRemainder(dividingBy: 2 * spanWidth)
         x = left + (phase <= spanWidth ? phase : 2 * spanWidth - phase)
         direction = phase < spanWidth ? 1 : -1
+    }
+
+    private mutating func walkOnPlatform(seconds: Double, left: Double, right: Double,
+                                        width: Double, platforms: [WindowPlatform]) {
+        var remaining = seconds
+        while remaining > 0 {
+            let edge = direction > 0 ? right : left
+            let timeToEdge = abs(edge - x) / speed
+            let elapsed = min(remaining, timeToEdge)
+            x += direction * speed * elapsed
+            distance = (distance + speed * elapsed).truncatingRemainder(dividingBy: 52)
+            remaining = max(0, remaining - elapsed)
+            guard elapsed == timeToEdge else { return }
+            x = edge
+            if Bool.random(using: &randomNumberGenerator) {
+                // Keep the departing edge from immediately catching us again.
+                departedPlatformID = support?.id
+                support = nil
+                fallSpeed = 0
+                let walkingTime = advanceFall(seconds: remaining, platforms: platforms)
+                if walkingTime > 0 {
+                    advance(seconds: walkingTime, width: width, platforms: platforms)
+                }
+                return
+            }
+            direction = -direction
+        }
     }
 
     private mutating func updateSupport(_ platforms: [WindowPlatform], width: Double) {
@@ -58,7 +100,9 @@ struct Walker {
 
     private mutating func advanceFall(seconds: Double, platforms: [WindowPlatform]) -> Double {
         guard isFalling else { return seconds }
-        let landing = platforms.filter { $0.frame.maxY <= height && $0.span(at: x) != nil }
+        let landing = platforms.filter {
+            $0.id != departedPlatformID && $0.frame.maxY <= height && $0.span(at: x) != nil
+        }
             .max { $0.frame.maxY < $1.frame.maxY }
         let floor = landing?.frame.maxY ?? 0
         let gap = height - floor
@@ -72,6 +116,7 @@ struct Walker {
         height = floor
         fallSpeed = 0
         support = landing
+        departedPlatformID = nil
         return seconds - landingTime
     }
 

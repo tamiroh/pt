@@ -8,7 +8,7 @@ final class WindowPlatformTests: XCTestCase {
     }
 
     func testLandsOnHighestPlatformAndWalksAlongIt() {
-        var walker = Walker(x: 50, direction: 1)
+        var walker = Walker(x: 50, direction: 1, randomNumberGenerator: FixedRandom(value: .max))
         walker.drop(from: 300)
         walker.advance(seconds: 1, width: 500, platforms: [platform(), platform(2, y: 200)])
         XCTAssertEqual(walker.height, 200)
@@ -17,6 +17,52 @@ final class WindowPlatformTests: XCTestCase {
         walker.advance(seconds: 10, width: 500, platforms: [platform(), platform(2, y: 200)])
         XCTAssertTrue((20...120).contains(walker.x))
         XCTAssertEqual(walker.height, 200)
+    }
+
+    func testFallsFromEitherEdgeWithoutLandingBackOnIt() {
+        for direction in [-1.0, 1.0] {
+            var walker = Walker(x: direction > 0 ? 119 : 21, direction: direction,
+                                randomNumberGenerator: FixedRandom(value: 0))
+            walker.drop(from: 100)
+            walker.advance(seconds: 0.1, width: 500, platforms: [platform()])
+            XCTAssertTrue(walker.isFalling)
+            XCTAssertLessThan(walker.height, 100)
+            XCTAssertEqual(walker.direction, direction)
+            walker.advance(seconds: 1, width: 500, platforms: [platform()])
+            XCTAssertEqual(walker.height, 0)
+        }
+    }
+
+    func testRollsOnlyWhenReachingAnEdgeAndCanTurnBack() {
+        let random = CountingRandom()
+        var walker = Walker(x: 119, direction: 1, randomNumberGenerator: random)
+        walker.drop(from: 100)
+        walker.advance(seconds: 0.01, width: 500, platforms: [platform()])
+        XCTAssertEqual(random.calls, 0)
+        walker.advance(seconds: 0.1, width: 500, platforms: [platform()])
+        XCTAssertEqual(random.calls, 1)
+        XCTAssertEqual(walker.direction, -1)
+        XCTAssertEqual(walker.height, 100)
+        XCTAssertFalse(walker.isFalling)
+    }
+
+    func testFallsOntoLowerWindowAndResumesWalking() {
+        var walker = Walker(x: 119, direction: 1, randomNumberGenerator: FixedRandom(value: 0))
+        walker.drop(from: 200)
+        walker.advance(seconds: 0.5, width: 500,
+                       platforms: [platform(1, y: 200), platform(2, x: 100)])
+        XCTAssertEqual(walker.height, 100)
+        XCTAssertFalse(walker.isFalling)
+        XCTAssertGreaterThan(walker.x, 120)
+    }
+
+    func testGroundEdgesNeverRoll() {
+        let random = CountingRandom()
+        var walker = Walker(x: 1, direction: -1, randomNumberGenerator: random)
+        walker.advance(seconds: 1, width: 100)
+        XCTAssertEqual(random.calls, 0)
+        XCTAssertEqual(walker.x, 26, accuracy: 0.0001)
+        XCTAssertEqual(walker.height, 0)
     }
 
     func testMovesWithPlatformAndFallsWhenItDisappears() {
@@ -62,5 +108,20 @@ final class WindowPlatformTests: XCTestCase {
            walkerSize: CGSize(width: 40, height: 42))
         XCTAssertEqual(platforms.count, 1)
         XCTAssertTrue(platforms[0].spans.isEmpty)
+    }
+}
+
+private struct FixedRandom: RandomNumberGenerator {
+    let value: UInt64
+
+    mutating func next() -> UInt64 { value }
+}
+
+private final class CountingRandom: RandomNumberGenerator {
+    private(set) var calls = 0
+
+    func next() -> UInt64 {
+        calls += 1
+        return .max
     }
 }
