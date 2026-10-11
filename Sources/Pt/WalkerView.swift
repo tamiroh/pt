@@ -7,6 +7,8 @@ final class WalkerView: NSView {
         NSSize(width: 400 * scale + 20, height: 700 * scale + 7)
     }
 
+    static var headTop: CGFloat { 700 * scale + 0.5 }
+
     var swing: Double = 0
     var direction: Double = -1
     var standing = false
