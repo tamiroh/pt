@@ -13,8 +13,8 @@ swift run pt
 ## Install
 
 ```sh
-make app       # build build/pt.app
-make install   # copy pt.app to /Applications
+make app       # build build/Pt.app
+make install   # copy Pt.app to /Applications
 ```
 
 Set `INSTALL_DIR` to install elsewhere, e.g. `make install INSTALL_DIR=~/Applications`.

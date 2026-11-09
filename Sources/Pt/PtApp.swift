@@ -77,12 +77,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func makeMenu() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        statusItem.button?.image = NSImage(systemSymbolName: "figure.walk", accessibilityDescription: "pt")
+        statusItem.button?.image = NSImage(systemSymbolName: "figure.walk", accessibilityDescription: "Pt")
         let menu = NSMenu()
         let pause = menu.addItem(withTitle: "Pause", action: #selector(togglePause(_:)), keyEquivalent: "")
         pause.target = self
         menu.addItem(.separator())
-        let quit = menu.addItem(withTitle: "Quit pt", action: #selector(quit), keyEquivalent: "q")
+        let quit = menu.addItem(withTitle: "Quit Pt", action: #selector(quit), keyEquivalent: "q")
         quit.target = self
         statusItem.menu = menu
     }
