@@ -49,24 +49,8 @@ enum IconRenderer {
     }
 
     static func drawTile() {
-        let shape = NSBezierPath(roundedRect: tile, xRadius: 185, yRadius: 185)
-        NSGraphicsContext.saveGraphicsState()
-        let shadow = NSShadow()
-        shadow.shadowColor = NSColor(white: 0, alpha: 0.3)
-        shadow.shadowOffset = NSSize(width: 0, height: -10)
-        shadow.shadowBlurRadius = 20
-        shadow.set()
         NSColor.white.setFill()
-        shape.fill()
-        NSGraphicsContext.restoreGraphicsState()
-
-        NSGradient(starting: NSColor(srgbRed: 0.62, green: 0.84, blue: 1, alpha: 1),
-                   ending: NSColor(srgbRed: 0.33, green: 0.62, blue: 0.94, alpha: 1))?
-            .draw(in: shape, angle: -90)
-
-        let groundShadow = NSRect(x: tile.midX - 190, y: 218, width: 380, height: 56)
-        NSColor(white: 0, alpha: 0.12).setFill()
-        NSBezierPath(ovalIn: groundShadow).fill()
+        NSBezierPath(roundedRect: tile, xRadius: 185, yRadius: 185).fill()
     }
 
     static func drawWalker(in context: CGContext) {
