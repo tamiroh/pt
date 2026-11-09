@@ -1,6 +1,6 @@
 PRODUCT := pt
 APP_NAME := Pt
-BUILD_DIR := build
+BUILD_DIR := build.noindex
 APP := $(BUILD_DIR)/$(APP_NAME).app
 ICON := $(BUILD_DIR)/AppIcon.icns
 INSTALL_DIR ?= /Applications

@@ -13,7 +13,7 @@ swift run pt
 ## Install
 
 ```sh
-make app       # build build/Pt.app
+make app       # build build.noindex/Pt.app
 make install   # copy Pt.app to /Applications
 ```
 
