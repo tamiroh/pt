@@ -47,7 +47,7 @@ final class WalkerTests: XCTestCase {
     }
 
     func testReflectsAtBothEdges() {
-        var walker = Walker(x: 1, direction: -1)
+        var walker = Walker(x: 1, direction: -1, randomNumberGenerator: FixedRandom(value: .max))
         walker.advance(seconds: 1, width: 100)
         XCTAssertEqual(walker.x, 26, accuracy: 0.0001)
         XCTAssertEqual(walker.direction, 1)
@@ -58,7 +58,7 @@ final class WalkerTests: XCTestCase {
     }
 
     func testLargeStepRemainsInsideScreen() {
-        var walker = Walker(x: 0, direction: 1)
+        var walker = Walker(x: 0, direction: 1, randomNumberGenerator: FixedRandom(value: .max))
         walker.advance(seconds: 10, width: 100)
         XCTAssertEqual(walker.x, 70, accuracy: 0.0001)
         XCTAssertEqual(walker.direction, 1)
@@ -81,5 +81,45 @@ final class WalkerTests: XCTestCase {
         walker.advance(seconds: 1, width: -1)
         XCTAssertEqual(walker.x, 0)
         XCTAssertEqual(walker.distance, 0)
+    }
+
+    func testWalksOffScreenEdgeAndDropsBackInFromAbove() {
+        var walker = Walker(x: 1, direction: -1, randomNumberGenerator: FixedRandom(value: 0))
+        walker.advance(seconds: 1, width: 100, ceiling: 300)
+        XCTAssertFalse(walker.isOffstage)
+        XCTAssertLessThan(walker.x, 0)
+        walker.constrain(to: 100)
+        XCTAssertLessThan(walker.x, 0)
+        walker.advance(seconds: 1, width: 100, ceiling: 300)
+        XCTAssertTrue(walker.isOffstage)
+        walker.advance(seconds: 4.9, width: 100, ceiling: 300)
+        XCTAssertTrue(walker.isOffstage)
+        walker.advance(seconds: 0.2, width: 100, ceiling: 300)
+        XCTAssertFalse(walker.isOffstage)
+        XCTAssertTrue(walker.isFalling)
+        XCTAssertEqual(walker.height, 300)
+        XCTAssertEqual(walker.x, 0)
+    }
+
+    func testLeavesFromTheRightEdgeToo() {
+        var walker = Walker(x: 99, direction: 1, randomNumberGenerator: FixedRandom(value: 0))
+        walker.advance(seconds: 3, width: 100)
+        XCTAssertTrue(walker.isOffstage)
+    }
+
+    func testStaysAwayWhilePaused() {
+        var walker = Walker(x: 1, direction: -1, randomNumberGenerator: FixedRandom(value: 0))
+        walker.advance(seconds: 3, width: 100, ceiling: 300)
+        XCTAssertTrue(walker.isOffstage)
+        walker.advance(seconds: 60, width: 100, walking: false, ceiling: 300)
+        XCTAssertTrue(walker.isOffstage)
+    }
+
+    func testDraggingBackCancelsLeaving() {
+        var walker = Walker(x: 1, direction: -1, randomNumberGenerator: FixedRandom(value: 0))
+        walker.advance(seconds: 1, width: 100)
+        walker.drop(from: 0)
+        walker.constrain(to: 100)
+        XCTAssertEqual(walker.x, 0)
     }
 }

@@ -111,7 +111,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let wasFalling = walker.isFalling
         walker.advance(seconds: min(max(0, now - previousTime), 0.1),
                        width: ground.width - walkerView.bounds.width, walking: !paused,
-                       platforms: platforms)
+                       platforms: platforms, ceiling: ground.height - walkerView.bounds.height)
         if walker.isFalling, !wasFalling { speak() }
         displayWalker()
     }
@@ -141,6 +141,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             window.setFrameOrigin(NSPoint(x: ground.minX + walker.x,
                                           y: ground.minY + walker.height))
         }
+        // Offstage, the window would otherwise peek onto a neighbouring display.
+        window.alphaValue = walker.isOffstage ? 0 : 1
+        window.ignoresMouseEvents = walker.isOffstage
         walkerView.swing = walker.swing
         walkerView.direction = walker.direction
         walkerView.standing = paused || dragging || walker.isFalling
@@ -157,8 +160,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ground = screen.visibleFrame
         }
         walker.x = window.frame.minX - ground.minX
-        walker.constrain(to: ground.width - walkerView.bounds.width)
         walker.drop(from: window.frame.minY - ground.minY)
+        walker.constrain(to: ground.width - walkerView.bounds.width)
         if walker.isFalling { speak() }
         dragging = false
         nextPlatformRefresh = 0

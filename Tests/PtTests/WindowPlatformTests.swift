@@ -56,13 +56,14 @@ final class WindowPlatformTests: XCTestCase {
         XCTAssertGreaterThan(walker.x, 120)
     }
 
-    func testGroundEdgesNeverRoll() {
+    func testGroundEdgesRollAndCanTurnBack() {
         let random = CountingRandom()
         var walker = Walker(x: 1, direction: -1, randomNumberGenerator: random)
         walker.advance(seconds: 1, width: 100)
-        XCTAssertEqual(random.calls, 0)
+        XCTAssertEqual(random.calls, 1)
         XCTAssertEqual(walker.x, 26, accuracy: 0.0001)
         XCTAssertEqual(walker.height, 0)
+        XCTAssertFalse(walker.isOffstage)
     }
 
     func testMovesWithPlatformAndFallsWhenItDisappears() {
@@ -108,20 +109,5 @@ final class WindowPlatformTests: XCTestCase {
            walkerSize: CGSize(width: 40, height: 42))
         XCTAssertEqual(platforms.count, 1)
         XCTAssertTrue(platforms[0].spans.isEmpty)
-    }
-}
-
-private struct FixedRandom: RandomNumberGenerator {
-    let value: UInt64
-
-    mutating func next() -> UInt64 { value }
-}
-
-private final class CountingRandom: RandomNumberGenerator {
-    private(set) var calls = 0
-
-    func next() -> UInt64 {
-        calls += 1
-        return .max
     }
 }

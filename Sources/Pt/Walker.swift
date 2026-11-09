@@ -2,11 +2,17 @@ import Foundation
 
 struct Walker {
     static let gravity: Double = 1_200
+    // Far enough past a screen edge that none of the body is left showing.
+    static let offstageMargin: Double = 48
+    static let awayTime: ClosedRange<Double> = 5...20
 
     var x: Double = 0
     var direction: Double = -1
     private(set) var distance: Double = 0
     private(set) var height: Double = 0
+    private(set) var isOffstage = false
+    private var leaving = false
+    private var awayRemaining: Double = 0
     private var fallSpeed: Double = 0
     private var support: WindowPlatform?
     private var departedPlatformID: UInt32?
@@ -28,46 +34,55 @@ struct Walker {
         fallSpeed = 0
         support = nil
         departedPlatformID = nil
+        leaving = false
+        isOffstage = false
     }
 
+    // `ceiling` is the height the walker drops back in from after a trip offstage.
     mutating func advance(seconds: Double, width: Double, walking: Bool = true,
-                          platforms: [WindowPlatform] = []) {
+                          platforms: [WindowPlatform] = [], ceiling: Double = 0) {
         guard seconds > 0 else { return }
+        if isOffstage {
+            guard walking else { return }
+            awayRemaining -= seconds
+            guard awayRemaining <= 0 else { return }
+            x = random(in: 0...max(0, width))
+            direction = Bool.random(using: &randomNumberGenerator) ? 1 : -1
+            drop(from: ceiling)
+            return
+        }
         updateSupport(platforms, width: width)
         let walkingTime = advanceFall(seconds: seconds, platforms: platforms)
         guard walking, width > 0, walkingTime > 0 else { return }
+        if leaving {
+            walkOffstage(seconds: walkingTime, width: width)
+            return
+        }
         let span = support?.span(at: x) ?? (0...width)
         let left = max(0, span.lowerBound)
         let right = min(width, span.upperBound)
         guard right > left else { return }
-        if support != nil {
-            walkOnPlatform(seconds: walkingTime, left: left, right: right,
-                           width: width, platforms: platforms)
-            return
-        }
-        let spanWidth = right - left
-        let travel = speed * walkingTime
-        distance = (distance + travel).truncatingRemainder(dividingBy: 52)
-        // Unfold the round trip so even a step crossing multiple edges reflects correctly.
-        let phase = ((direction > 0 ? x - left : 2 * spanWidth - (x - left)) + travel)
-            .truncatingRemainder(dividingBy: 2 * spanWidth)
-        x = left + (phase <= spanWidth ? phase : 2 * spanWidth - phase)
-        direction = phase < spanWidth ? 1 : -1
+        walk(seconds: walkingTime, left: left, right: right, width: width, platforms: platforms)
     }
 
-    private mutating func walkOnPlatform(seconds: Double, left: Double, right: Double,
-                                        width: Double, platforms: [WindowPlatform]) {
+    private mutating func walk(seconds: Double, left: Double, right: Double,
+                               width: Double, platforms: [WindowPlatform]) {
         var remaining = seconds
         while remaining > 0 {
             let edge = direction > 0 ? right : left
             let timeToEdge = abs(edge - x) / speed
             let elapsed = min(remaining, timeToEdge)
-            x += direction * speed * elapsed
-            distance = (distance + speed * elapsed).truncatingRemainder(dividingBy: 52)
+            step(elapsed)
             remaining = max(0, remaining - elapsed)
             guard elapsed == timeToEdge else { return }
             x = edge
             if Bool.random(using: &randomNumberGenerator) {
+                guard support != nil else {
+                    // At a screen edge on the ground, keep going and leave the screen.
+                    leaving = true
+                    walkOffstage(seconds: remaining, width: width)
+                    return
+                }
                 // Keep the departing edge from immediately catching us again.
                 departedPlatformID = support?.id
                 support = nil
@@ -80,6 +95,26 @@ struct Walker {
             }
             direction = -direction
         }
+    }
+
+    private mutating func walkOffstage(seconds: Double, width: Double) {
+        step(seconds)
+        guard x <= -Self.offstageMargin || x >= width + Self.offstageMargin else { return }
+        leaving = false
+        isOffstage = true
+        awayRemaining = random(in: Self.awayTime)
+    }
+
+    private mutating func step(_ seconds: Double) {
+        x += direction * speed * seconds
+        distance = (distance + speed * seconds).truncatingRemainder(dividingBy: 52)
+    }
+
+    // Uses the raw bits directly; the standard library's float sampling can retry forever
+    // on a constant generator.
+    private mutating func random(in range: ClosedRange<Double>) -> Double {
+        let unit = Double(randomNumberGenerator.next() >> 11) / Double(1 << 53)
+        return range.lowerBound + (range.upperBound - range.lowerBound) * unit
     }
 
     private mutating func updateSupport(_ platforms: [WindowPlatform], width: Double) {
@@ -121,6 +156,7 @@ struct Walker {
     }
 
     mutating func constrain(to width: Double) {
+        guard !leaving, !isOffstage else { return }
         x = min(max(0, x), max(0, width))
     }
 }
