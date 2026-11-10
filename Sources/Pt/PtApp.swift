@@ -155,8 +155,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             balloonView.sway = walker.sway
             balloonView.needsDisplay = true
             balloonWindow.setFrameOrigin(NSPoint(
-                x: ground.minX + walker.x + (walkerView.bounds.width - balloonWindow.frame.width) / 2,
-                y: ground.minY + walker.height + WalkerView.headTop))
+                x: ground.minX + CGFloat(walker.x) + (walkerView.bounds.width - balloonWindow.frame.width) / 2,
+                y: ground.minY + CGFloat(walker.height) + WalkerView.headTop))
             balloonWindow.alphaValue = 1
             return
         }
