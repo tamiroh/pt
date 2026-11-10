@@ -5,12 +5,16 @@ struct Walker {
     // Far enough past a screen edge that none of the body is left showing.
     static let offstageMargin: Double = 48
     static let awayTime: ClosedRange<Double> = 5...20
+    static let floatSpeed: Double = 50
 
     var x: Double = 0
     var direction: Double = -1
     private(set) var distance: Double = 0
     private(set) var height: Double = 0
     private(set) var isOffstage = false
+    // Drifting down under a balloon instead of falling freely.
+    private(set) var isFloating = false
+    private var floatTime: Double = 0
     private var leaving = false
     private var awayRemaining: Double = 0
     private var fallSpeed: Double = 0
@@ -21,6 +25,8 @@ struct Walker {
 
     var swing: Double { sin(distance / 26 * .pi) * 10 }
     var isFalling: Bool { height > 0 && support == nil }
+    // Pendulum angle in degrees beneath the balloon; positive swings to the right.
+    var sway: Double { isFloating ? sin(floatTime / 3.2 * 2 * .pi) * 9 : 0 }
 
     init(x: Double = 0, direction: Double = -1,
          randomNumberGenerator: any RandomNumberGenerator = SystemRandomNumberGenerator()) {
@@ -36,6 +42,7 @@ struct Walker {
         departedPlatformID = nil
         leaving = false
         isOffstage = false
+        isFloating = false
     }
 
     // `ceiling` is the height the walker drops back in from after a trip offstage.
@@ -49,6 +56,8 @@ struct Walker {
             x = random(in: 0...max(0, width))
             direction = Bool.random(using: &randomNumberGenerator) ? 1 : -1
             drop(from: ceiling)
+            isFloating = height > 0
+            floatTime = 0
             return
         }
         updateSupport(platforms, width: width)
@@ -141,6 +150,19 @@ struct Walker {
             .max { $0.frame.maxY < $1.frame.maxY }
         let floor = landing?.frame.maxY ?? 0
         let gap = height - floor
+        if isFloating {
+            let landingTime = gap / Self.floatSpeed
+            if seconds < landingTime {
+                height -= Self.floatSpeed * seconds
+                floatTime += seconds
+                return 0
+            }
+            isFloating = false
+            height = floor
+            support = landing
+            departedPlatformID = nil
+            return seconds - landingTime
+        }
         let landingTime = gap > 0 ? 2 * gap
             / (sqrt(fallSpeed * fallSpeed + 2 * Self.gravity * gap) + fallSpeed) : 0
         if seconds < landingTime {

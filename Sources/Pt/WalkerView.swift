@@ -12,6 +12,9 @@ final class WalkerView: NSView {
     var swing: Double = 0
     var direction: Double = -1
     var standing = false
+    // Hanging from a balloon: legs tucked away, body tilted by `sway` degrees about the head.
+    var floating = false
+    var sway: Double = 0
     var onDragStarted: (() -> Void)?
     var onDragEnded: (() -> Void)?
     private var dragOffset: NSPoint?
@@ -52,6 +55,11 @@ final class WalkerView: NSView {
         context.saveGState()
         defer { context.restoreGState() }
 
+        if floating {
+            context.translateBy(x: bounds.midX, y: Self.headTop)
+            context.rotate(by: sway * .pi / 180)
+            context.translateBy(x: -bounds.midX, y: -Self.headTop)
+        }
         context.translateBy(x: bounds.midX, y: 50 * Self.scale + 0.5)
         context.scaleBy(x: direction < 0 ? Self.scale : -Self.scale, y: -Self.scale)
         context.setStrokeColor(NSColor(white: 171.0 / 255, alpha: 1).cgColor)
@@ -85,6 +93,7 @@ final class WalkerView: NSView {
         }
         context.strokePath()
 
+        guard !floating else { return }
         drawLeg(context, hip: CGPoint(x: -90, y: -150), angle: swing,
                 knee: standing ? CGPoint(x: -90, y: 0) : CGPoint(x: -132, y: -6),
                 foot: standing ? CGPoint(x: -140, y: 0) : CGPoint(x: -180, y: -20))

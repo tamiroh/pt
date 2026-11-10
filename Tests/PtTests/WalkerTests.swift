@@ -122,4 +122,43 @@ final class WalkerTests: XCTestCase {
         walker.constrain(to: 100)
         XCTAssertEqual(walker.x, 0)
     }
+
+    func testReturnsUnderBalloonDriftingDownSlowlyAndSwaying() {
+        var walker = Walker(x: 1, direction: -1, randomNumberGenerator: FixedRandom(value: 0))
+        walker.advance(seconds: 3, width: 100, ceiling: 300)
+        walker.advance(seconds: 5, width: 100, ceiling: 300)
+        XCTAssertTrue(walker.isFloating)
+        XCTAssertEqual(walker.sway, 0)
+        walker.advance(seconds: 1, width: 100, ceiling: 300)
+        XCTAssertEqual(walker.height, 300 - Walker.floatSpeed, accuracy: 0.0001)
+        XCTAssertNotEqual(walker.sway, 0)
+        XCTAssertEqual(walker.x, 0)
+        walker.advance(seconds: 300 / Walker.floatSpeed, width: 100, ceiling: 300)
+        XCTAssertEqual(walker.height, 0)
+        XCTAssertFalse(walker.isFloating)
+        XCTAssertFalse(walker.isFalling)
+        XCTAssertEqual(walker.sway, 0)
+        XCTAssertGreaterThan(walker.x, 0)
+    }
+
+    func testBalloonLandsOnWindowBelow() {
+        var walker = Walker(x: 1, direction: -1, randomNumberGenerator: FixedRandom(value: 0))
+        let platform = WindowPlatform(id: 1, frame: CGRect(x: 0, y: 0, width: 50, height: 100),
+                                      spans: [0...50])
+        walker.advance(seconds: 3, width: 100, ceiling: 300)
+        walker.advance(seconds: 5, width: 100, platforms: [platform], ceiling: 300)
+        walker.advance(seconds: 4.1, width: 100, walking: false, platforms: [platform], ceiling: 300)
+        XCTAssertEqual(walker.height, 100)
+        XCTAssertFalse(walker.isFloating)
+    }
+
+    func testDroppingWhileFloatingFallsFreely() {
+        var walker = Walker(x: 1, direction: -1, randomNumberGenerator: FixedRandom(value: 0))
+        walker.advance(seconds: 3, width: 100, ceiling: 300)
+        walker.advance(seconds: 5, width: 100, ceiling: 300)
+        walker.drop(from: 150)
+        XCTAssertFalse(walker.isFloating)
+        walker.advance(seconds: 0.25, width: 100)
+        XCTAssertEqual(walker.height, 112.5, accuracy: 0.0001)
+    }
 }
