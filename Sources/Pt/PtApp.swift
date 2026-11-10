@@ -29,6 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var timer: Timer?
     private var walker = Walker()
     private var ground = NSRect.zero
+    private var screenTop: CGFloat = 0
     private var previousTime = CACurrentMediaTime()
     private var paused = false
     private var dragging = false
@@ -70,7 +71,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func makeWindow(for view: NSView) -> NSWindow {
-        let window = NSWindow(contentRect: view.bounds, styleMask: [.borderless],
+        let window = UnconstrainedWindow(contentRect: view.bounds, styleMask: [.borderless],
                               backing: .buffered, defer: false)
         window.isOpaque = false
         window.backgroundColor = .clear
@@ -98,6 +99,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func updateScreen() {
         guard let screen = window.screen ?? NSScreen.screens.first else { return }
         ground = screen.visibleFrame
+        screenTop = screen.frame.maxY
         nextPlatformRefresh = 0
         guard !dragging else { return }
         walker.constrain(to: ground.width - walkerView.bounds.width)
@@ -121,7 +123,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         walker.advance(seconds: min(max(0, now - previousTime), 0.1),
                        width: ground.width - walkerView.bounds.width, walking: !paused,
                        platforms: platforms,
-                       ceiling: ground.height - WalkerView.headTop - BalloonView.size.height)
+                       ceiling: screenTop - ground.minY)
         // The balloon already sits where the bubble would go.
         if walker.isFalling, !wasFalling, !walker.isFloating { speak() }
         displayWalker()
@@ -208,6 +210,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func endDragging() {
         if let screen = window.screen ?? NSScreen.screens.first {
             ground = screen.visibleFrame
+            screenTop = screen.frame.maxY
         }
         walker.x = window.frame.minX - ground.minX
         walker.drop(from: window.frame.minY - ground.minY)
@@ -226,4 +229,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func quit() { NSApplication.shared.terminate(nil) }
+}
+
+final class UnconstrainedWindow: NSWindow {
+    override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
+        frameRect
+    }
 }
