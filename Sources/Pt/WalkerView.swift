@@ -17,14 +17,20 @@ final class WalkerView: NSView {
     var sway: Double = 0
     var onDragStarted: (() -> Void)?
     var onDragEnded: (() -> Void)?
+    var onMenuRequested: (() -> Void)?
     private var dragOffset: NSPoint?
 
     override var isOpaque: Bool { false }
 
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
+    override func rightMouseDown(with event: NSEvent) {
+        onMenuRequested?()
+    }
+
     override func mouseDown(with event: NSEvent) {
         guard let window else { return }
+        if event.modifierFlags.contains(.control) { return rightMouseDown(with: event) }
         let pointer = window.convertPoint(toScreen: event.locationInWindow)
         dragOffset = NSPoint(x: pointer.x - window.frame.minX,
                              y: pointer.y - window.frame.minY)

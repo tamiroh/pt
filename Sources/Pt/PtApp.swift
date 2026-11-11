@@ -19,13 +19,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let bubbleView = BubbleView(frame: .zero)
     private let balloonView = BalloonView(frame: NSRect(origin: .zero, size: BalloonView.size))
     private let speech = Speech()
+    private let contextMenu = ContextMenu()
     private var window: NSWindow!
     private var bubbleWindow: NSWindow!
     private var balloonWindow: NSWindow!
     private var balloonHeld = false
     private var balloonReleased: CFTimeInterval?
     private var bubble: Bubble?
-    private var statusItem: NSStatusItem!
     private var timer: Timer?
     private var walker = Walker()
     private var ground = NSRect.zero
@@ -46,6 +46,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         balloonWindow.alphaValue = 0
         walkerView.onDragStarted = { [weak self] in self?.beginDragging() }
         walkerView.onDragEnded = { [weak self] in self?.endDragging() }
+        walkerView.onMenuRequested = { [weak self] in self?.showMenu() }
+        contextMenu.onClose = { [weak self] in self?.displayWalker() }
         updateScreen()
         walker.x = max(0, (ground.width - walkerView.bounds.width) / 2)
         displayWalker()
@@ -54,7 +56,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // As a child, the bubble follows the walker while it is being dragged.
         window.addChildWindow(bubbleWindow, ordered: .above)
         speech.prepare()
-        makeMenu()
         NotificationCenter.default.addObserver(self, selector: #selector(updateScreen),
             name: NSApplication.didChangeScreenParametersNotification, object: nil)
         previousTime = CACurrentMediaTime()
@@ -84,16 +85,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return window
     }
 
-    private func makeMenu() {
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        statusItem.button?.image = NSImage(systemSymbolName: "figure.walk", accessibilityDescription: "Pt")
-        let menu = NSMenu()
-        let pause = menu.addItem(withTitle: "Pause", action: #selector(togglePause(_:)), keyEquivalent: "")
-        pause.target = self
-        menu.addItem(.separator())
-        let quit = menu.addItem(withTitle: "Quit Pt", action: #selector(quit), keyEquivalent: "q")
-        quit.target = self
-        statusItem.menu = menu
+    private var menuAnchor: NSRect {
+        NSRect(x: window.frame.minX, y: window.frame.minY,
+               width: window.frame.width, height: WalkerView.headTop)
+    }
+
+    private func showMenu() {
+        bubble = nil
+        contextMenu.open([
+            .init(title: paused ? "Resume Walking" : "Pause") { [weak self] in self?.togglePause() },
+            .init(title: "Quit Pt") { NSApplication.shared.terminate(nil) },
+        ], from: menuAnchor)
+        displayWalker()
     }
 
     @objc private func updateScreen() {
@@ -121,7 +124,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         let wasFalling = walker.isFalling
         walker.advance(seconds: min(max(0, now - previousTime), 0.1),
-                       width: ground.width - walkerView.bounds.width, walking: !paused,
+                       width: ground.width - walkerView.bounds.width,
+                       walking: !paused && !contextMenu.isOpen,
                        platforms: platforms,
                        ceiling: screenTop - ground.minY)
         // The balloon already sits where the bubble would go.
@@ -198,8 +202,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.ignoresMouseEvents = walker.isOffstage
         walkerView.swing = walker.swing
         walkerView.direction = walker.direction
-        walkerView.standing = paused || dragging || walker.isFalling
+        walkerView.standing = paused || dragging || walker.isFalling || contextMenu.isOpen
         walkerView.needsDisplay = true
+        contextMenu.follow(menuAnchor)
     }
 
     private func beginDragging() {
@@ -222,13 +227,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         displayWalker()
     }
 
-    @objc private func togglePause(_ sender: NSMenuItem) {
+    private func togglePause() {
         paused.toggle()
-        sender.title = paused ? "Resume Walking" : "Pause"
         displayWalker()
     }
-
-    @objc private func quit() { NSApplication.shared.terminate(nil) }
 }
 
 final class UnconstrainedWindow: NSWindow {
