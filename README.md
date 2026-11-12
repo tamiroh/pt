@@ -17,9 +17,7 @@ make run
 ## Install
 
 ```sh
-make app       # build build.noindex/Pt.app
-make install   # copy Pt.app to /Applications
+make app         # build build.noindex/Pt.app
+make install     # copy Pt.app to /Applications
+make uninstall   # remove the installed Pt.app
 ```
-
-Set `INSTALL_DIR` to install elsewhere, e.g. `make install INSTALL_DIR=~/Applications`.
-`make uninstall` removes the installed app.
