@@ -6,7 +6,7 @@ struct Walker {
     static let offstageMargin: Double = 48
     static let awayTime: ClosedRange<Double> = 5...20
     static let floatSpeed: Double = 50
-    static let balloonTrigger: Double = 400
+    static let balloonTrigger: Double = 900
     static let balloonBrake: Double = 1_500
 
     var x: Double = 0

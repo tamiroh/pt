@@ -28,7 +28,7 @@ final class WalkerTests: XCTestCase {
 
     func testFastFallSwitchesToBalloonDescent() {
         var walker = Walker(x: 50)
-        walker.drop(from: 300)
+        walker.drop(from: 1_000)
         let triggerTime = Walker.balloonTrigger / Walker.gravity
         walker.advance(seconds: triggerTime - 0.01, width: 100, walking: false)
         XCTAssertFalse(walker.isFloating)
@@ -47,7 +47,7 @@ final class WalkerTests: XCTestCase {
 
     func testBalloonDescentIsIndependentOfFrameRate() {
         var smooth = Walker(x: 50)
-        smooth.drop(from: 300)
+        smooth.drop(from: 1_000)
         var single = smooth
         for _ in 0..<120 { smooth.advance(seconds: 1.0 / 60, width: 100, walking: false) }
         single.advance(seconds: 2, width: 100, walking: false)
