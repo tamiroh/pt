@@ -4,15 +4,16 @@ import XCTest
 final class WalkerTests: XCTestCase {
     func testDropAcceleratesThenResumesWalkingAtLanding() {
         var walker = Walker(x: 50, direction: 1)
-        walker.drop(from: 150)
+        walker.drop(from: 60)
         walker.advance(seconds: 0.25, width: 1_000)
-        XCTAssertEqual(walker.height, 112.5, accuracy: 0.0001)
+        XCTAssertEqual(walker.height, 22.5, accuracy: 0.0001)
         XCTAssertEqual(walker.x, 50)
         XCTAssertEqual(walker.distance, 0)
         walker.advance(seconds: 0.5, width: 1_000)
         XCTAssertEqual(walker.height, 0)
         XCTAssertFalse(walker.isFalling)
-        XCTAssertEqual(walker.x, 56.75, accuracy: 0.0001)
+        XCTAssertFalse(walker.isFloating)
+        XCTAssertEqual(walker.x, 50 + walker.speed * (0.75 - 0.1.squareRoot()), accuracy: 0.0001)
     }
 
     func testFallingIsIndependentOfFrameRate() {
@@ -25,10 +26,49 @@ final class WalkerTests: XCTestCase {
         XCTAssertEqual(smooth.x, single.x, accuracy: 0.0001)
     }
 
+    func testFastFallSwitchesToBalloonDescent() {
+        var walker = Walker(x: 50)
+        walker.drop(from: 300)
+        let triggerTime = Walker.balloonTrigger / Walker.gravity
+        walker.advance(seconds: triggerTime - 0.01, width: 100, walking: false)
+        XCTAssertFalse(walker.isFloating)
+        walker.advance(seconds: 0.02, width: 100, walking: false)
+        XCTAssertTrue(walker.isFloating)
+        let brakingTime = (Walker.balloonTrigger - Walker.floatSpeed) / Walker.balloonBrake
+        walker.advance(seconds: brakingTime, width: 100, walking: false)
+        let before = walker.height
+        walker.advance(seconds: 1, width: 100, walking: false)
+        XCTAssertEqual(before - walker.height, Walker.floatSpeed, accuracy: 0.0001)
+        XCTAssertNotEqual(walker.sway, 0)
+        walker.advance(seconds: 10, width: 100, walking: false)
+        XCTAssertEqual(walker.height, 0)
+        XCTAssertFalse(walker.isFloating)
+    }
+
+    func testBalloonDescentIsIndependentOfFrameRate() {
+        var smooth = Walker(x: 50)
+        smooth.drop(from: 300)
+        var single = smooth
+        for _ in 0..<120 { smooth.advance(seconds: 1.0 / 60, width: 100, walking: false) }
+        single.advance(seconds: 2, width: 100, walking: false)
+        XCTAssertTrue(single.isFloating)
+        XCTAssertEqual(smooth.height, single.height, accuracy: 0.0001)
+        XCTAssertEqual(smooth.sway, single.sway, accuracy: 0.0001)
+    }
+
+    func testLandsWhileBrakingUnderBalloon() {
+        var walker = Walker(x: 50)
+        walker.drop(from: Walker.balloonTrigger * Walker.balloonTrigger / (2 * Walker.gravity) + 5)
+        walker.advance(seconds: 1, width: 100, walking: false)
+        XCTAssertEqual(walker.height, 0)
+        XCTAssertFalse(walker.isFloating)
+        XCTAssertFalse(walker.isFalling)
+    }
+
     func testPausedWalkerStillFallsButDoesNotWalk() {
         var walker = Walker(x: 50)
         walker.drop(from: 150)
-        walker.advance(seconds: 1, width: 100, walking: false)
+        walker.advance(seconds: 10, width: 100, walking: false)
         XCTAssertEqual(walker.height, 0)
         XCTAssertEqual(walker.x, 50)
         XCTAssertEqual(walker.distance, 0)

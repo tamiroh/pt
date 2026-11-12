@@ -145,10 +145,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         bubbleWindow.alphaValue = bubble?.opacity(at: now) ?? 0
         guard bubble != nil, !dragging else { return }
         let width = bubbleWindow.frame.width
-        let center = window.frame.midX
+        let floating = walker.isFloating
+        let center = floating ? balloonWindow.frame.midX : window.frame.midX
+        let top = floating ? balloonWindow.frame.maxY : window.frame.minY + WalkerView.headTop
         let x = max(ground.minX, min(center - width / 2, ground.maxX - width))
         bubbleWindow.setFrameOrigin(NSPoint(
-            x: x, y: window.frame.minY + WalkerView.headTop + BubbleView.gap - BubbleView.margin))
+            x: x, y: top + BubbleView.gap - BubbleView.margin))
         bubbleView.tailX = center - x
         bubbleView.needsDisplay = true
     }

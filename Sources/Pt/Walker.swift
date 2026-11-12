@@ -6,6 +6,8 @@ struct Walker {
     static let offstageMargin: Double = 48
     static let awayTime: ClosedRange<Double> = 5...20
     static let floatSpeed: Double = 50
+    static let balloonTrigger: Double = 400
+    static let balloonBrake: Double = 1_500
 
     var x: Double = 0
     var direction: Double = -1
@@ -56,8 +58,7 @@ struct Walker {
             x = random(in: 0...max(0, width))
             direction = Bool.random(using: &randomNumberGenerator) ? 1 : -1
             drop(from: ceiling)
-            isFloating = height > 0
-            floatTime = 0
+            if height > 0 { startFloating() }
             return
         }
         updateSupport(platforms, width: width)
@@ -151,30 +152,76 @@ struct Walker {
         let floor = landing?.frame.maxY ?? 0
         let gap = height - floor
         if isFloating {
-            let landingTime = gap / Self.floatSpeed
-            if seconds < landingTime {
-                height -= Self.floatSpeed * seconds
-                floatTime += seconds
-                return 0
-            }
-            isFloating = false
-            height = floor
-            support = landing
-            departedPlatformID = nil
-            return seconds - landingTime
+            return advanceFloat(seconds: seconds, gap: gap, landing: landing)
         }
         let landingTime = gap > 0 ? 2 * gap
             / (sqrt(fallSpeed * fallSpeed + 2 * Self.gravity * gap) + fallSpeed) : 0
+        let triggerTime = max(0, Self.balloonTrigger - fallSpeed) / Self.gravity
+        if triggerTime < landingTime, triggerTime <= seconds {
+            descend(triggerTime, acceleration: Self.gravity)
+            startFloating(speed: fallSpeed)
+            return advanceFloat(seconds: seconds - triggerTime, gap: height - floor, landing: landing)
+        }
         if seconds < landingTime {
-            height -= fallSpeed * seconds + 0.5 * Self.gravity * seconds * seconds
-            fallSpeed += Self.gravity * seconds
+            descend(seconds, acceleration: Self.gravity)
             return 0
         }
+        land(on: landing, at: floor)
+        return seconds - landingTime
+    }
+
+    private mutating func advanceFloat(seconds: Double, gap: Double,
+                                       landing: WindowPlatform?) -> Double {
+        let floor = height - gap
+        var remaining = seconds
+        if fallSpeed > Self.floatSpeed {
+            let brakingTime = (fallSpeed - Self.floatSpeed) / Self.balloonBrake
+            let brakingDistance = (fallSpeed + Self.floatSpeed) / 2 * brakingTime
+            if gap <= brakingDistance {
+                let landingTime = 2 * gap / (fallSpeed + sqrt(max(0,
+                    fallSpeed * fallSpeed - 2 * Self.balloonBrake * gap)))
+                if remaining < landingTime {
+                    descend(remaining, acceleration: -Self.balloonBrake)
+                    return 0
+                }
+                land(on: landing, at: floor)
+                return remaining - landingTime
+            }
+            if remaining < brakingTime {
+                descend(remaining, acceleration: -Self.balloonBrake)
+                return 0
+            }
+            descend(brakingTime, acceleration: -Self.balloonBrake)
+            fallSpeed = Self.floatSpeed
+            remaining -= brakingTime
+        }
+        let landingTime = (height - floor) / Self.floatSpeed
+        if remaining < landingTime {
+            descend(remaining, acceleration: 0)
+            return 0
+        }
+        land(on: landing, at: floor)
+        return remaining - landingTime
+    }
+
+    private mutating func descend(_ seconds: Double, acceleration: Double) {
+        height -= fallSpeed * seconds + 0.5 * acceleration * seconds * seconds
+        fallSpeed += acceleration * seconds
+        if isFloating { floatTime += seconds }
+    }
+
+    private mutating func startFloating(speed: Double = floatSpeed) {
+        isFloating = true
+        floatTime = 0
+        fallSpeed = speed
+    }
+
+    private mutating func land(on landing: WindowPlatform?, at floor: Double) {
+        isFloating = false
         height = floor
         fallSpeed = 0
         support = landing
         departedPlatformID = nil
-        return seconds - landingTime
     }
 
     mutating func constrain(to width: Double) {

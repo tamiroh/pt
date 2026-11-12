@@ -76,7 +76,7 @@ final class WindowPlatformTests: XCTestCase {
         walker.advance(seconds: 0.1, width: 500, walking: false)
         XCTAssertTrue(walker.isFalling)
         XCTAssertLessThan(walker.height, 150)
-        walker.advance(seconds: 1, width: 500)
+        walker.advance(seconds: 10, width: 500, walking: false)
         XCTAssertEqual(walker.height, 0)
     }
 
