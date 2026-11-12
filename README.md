@@ -1,6 +1,10 @@
-# pt
+<p align="center">
+  <img src="Support/AppIcon.png" width="128" alt="">
+</p>
 
-A tiny sprite. Walks, falls, floats.
+<h1 align="center">Pt</h1>
+
+<p align="center">A tiny sprite. Walks, falls, floats.</p>
 
 ## Run
 
