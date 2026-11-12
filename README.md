@@ -23,11 +23,3 @@ make install   # copy Pt.app to /Applications
 
 Set `INSTALL_DIR` to install elsewhere, e.g. `make install INSTALL_DIR=~/Applications`.
 `make uninstall` removes the installed app.
-
-## Development
-
-```sh
-swift build
-swift test
-swift build -c release
-```

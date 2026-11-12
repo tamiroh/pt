@@ -3,13 +3,14 @@ APP_NAME := Pt
 BUILD_DIR := build.noindex
 APP := $(BUILD_DIR)/$(APP_NAME).app
 ICON := $(BUILD_DIR)/AppIcon.icns
+README_ICON := Support/AppIcon.png
 INSTALL_DIR ?= /Applications
 
 .PHONY: all
 all: app
 
 .PHONY: app
-app: $(ICON)
+app: $(ICON) $(README_ICON)
 	swift build -c release --product $(PRODUCT)
 	rm -rf "$(APP)"
 	mkdir -p "$(APP)/Contents/MacOS" "$(APP)/Contents/Resources"
@@ -23,6 +24,9 @@ $(ICON): Support/IconRenderer.swift Sources/Pt/WalkerView.swift
 	swiftc -parse-as-library -O $^ -o "$(BUILD_DIR)/IconRenderer"
 	"$(BUILD_DIR)/IconRenderer" "$(BUILD_DIR)/AppIcon.iconset"
 	iconutil -c icns "$(BUILD_DIR)/AppIcon.iconset" -o "$@"
+
+$(README_ICON): $(ICON)
+	cp "$(BUILD_DIR)/AppIcon.iconset/icon_256x256@2x.png" "$@"
 
 .PHONY: install
 install: app
