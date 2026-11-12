@@ -1,6 +1,6 @@
 # pt
 
-A small desktop mascot for macOS.
+A tiny sprite. Walks, falls, floats.
 
 ## Run
 
