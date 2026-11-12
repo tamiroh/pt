@@ -11,7 +11,7 @@
 Requires macOS 13+ and Swift 6+.
 
 ```sh
-swift run pt
+make run
 ```
 
 ## Install

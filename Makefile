@@ -9,6 +9,10 @@ INSTALL_DIR ?= /Applications
 .PHONY: all
 all: app
 
+.PHONY: run
+run:
+	swift run $(PRODUCT)
+
 .PHONY: app
 app: $(ICON) $(README_ICON)
 	swift build -c release --product $(PRODUCT)
