@@ -39,6 +39,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var targetLoad: Double = 0
     private var load: Double = 0
     private var nextLoadSample: CFTimeInterval = 0
+    private var flailPhase: Double = 0
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         window = makeWindow(for: walkerView)
@@ -120,7 +121,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             previousTime = now
             displayBubble(at: now)
         }
-        guard !dragging else { return }
+        guard !dragging else {
+            let elapsed = min(max(0, now - previousTime), 0.1)
+            flailPhase = (flailPhase + elapsed * 2 * .pi * 7).truncatingRemainder(dividingBy: 2 * .pi)
+            displayWalker()
+            return
+        }
         // Avoid teleporting after sleep or a stalled run loop.
         if now >= nextPlatformRefresh {
             platforms = WindowPlatforms().read(ground: ground, walkerSize: walkerView.bounds.size)
@@ -214,9 +220,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Offstage, the window would otherwise peek onto a neighbouring display.
         window.alphaValue = walker.isOffstage ? 0 : 1
         window.ignoresMouseEvents = walker.isOffstage
-        walkerView.swing = walker.swing
+        walkerView.swing = dragging ? sin(flailPhase) * 35 : walker.swing
         walkerView.direction = walker.direction
-        walkerView.standing = paused || dragging || walker.isFalling || contextMenu.isOpen
+        walkerView.standing = !dragging && (paused || walker.isFalling || contextMenu.isOpen)
         walkerView.needsDisplay = true
         contextMenu.follow(menuAnchor)
     }
