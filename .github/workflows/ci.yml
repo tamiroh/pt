@@ -23,5 +23,7 @@ jobs:
         run: swift build
       - name: Test
         run: swift test
+      - name: Lint
+        run: make lint
       - name: Build app bundle
         run: make app

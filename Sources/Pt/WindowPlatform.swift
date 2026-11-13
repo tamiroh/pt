@@ -34,8 +34,10 @@ struct WindowPlatform {
             platforms.append(WindowPlatform(
                 id: window.id,
                 frame: window.frame.offsetBy(dx: -ground.minX, dy: -ground.minY),
-                spans: spans.map {
-                    Double($0.lowerBound - ground.minX - walkerSize.width / 2)...Double($0.upperBound - ground.minX - walkerSize.width / 2)
+                spans: spans.map { span in
+                    let lower = Double(span.lowerBound - ground.minX - walkerSize.width / 2)
+                    let upper = Double(span.upperBound - ground.minX - walkerSize.width / 2)
+                    return lower...upper
                 }))
         }
         return platforms

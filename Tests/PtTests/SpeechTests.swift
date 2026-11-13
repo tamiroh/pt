@@ -4,8 +4,10 @@ import XCTest
 final class SpeechTests: XCTestCase {
     func testTidyDropsBlankRepeatedAndLongLines() {
         XCTAssertEqual(
-            Speech.tidy([" Whoa \n", "", "Whoa", "Oops",
-                         String(repeating: "a", count: Speech.longest + 1)]),
+            Speech.tidy([
+                " Whoa \n", "", "Whoa", "Oops",
+                String(repeating: "a", count: Speech.longest + 1),
+            ]),
             ["Whoa", "Oops"])
     }
 

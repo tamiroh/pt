@@ -75,7 +75,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         timer?.invalidate()
-        NotificationCenter.default.removeObserver(self)
     }
 
     private func makeWindow(for view: NSView) -> NSWindow {

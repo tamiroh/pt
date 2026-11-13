@@ -114,8 +114,10 @@ final class ContextMenuView: NSView {
                                  height: Self.itemHeight * CGFloat(items.count) + 2 * Self.stroke
                                      + Self.tail + Self.stroke))
         addTrackingArea(NSTrackingArea(rect: .zero,
-                                       options: [.mouseMoved, .mouseEnteredAndExited,
-                                                 .activeAlways, .inVisibleRect],
+                                       options: [
+                                           .mouseMoved, .mouseEnteredAndExited,
+                                           .activeAlways, .inVisibleRect,
+                                       ],
                                        owner: self))
     }
 

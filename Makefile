@@ -15,6 +15,10 @@ all: app
 run:
 	swift run $(PRODUCT)
 
+.PHONY: lint
+lint:
+	swift package plugin --allow-writing-to-package-directory swiftlint --strict --quiet
+
 .PHONY: app
 app: $(ICON) $(README_ICON)
 	swift build -c release --product $(PRODUCT)
