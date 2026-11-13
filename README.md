@@ -18,6 +18,7 @@ make run
 
 ```sh
 make app         # build build.noindex/Pt.app
+make dmg         # build build.noindex/Pt.dmg
 make install     # copy Pt.app to /Applications
 make uninstall   # remove the installed Pt.app
 ```

@@ -4,6 +4,8 @@ BUILD_DIR := build.noindex
 APP := $(BUILD_DIR)/$(APP_NAME).app
 ICON := $(BUILD_DIR)/AppIcon.icns
 README_ICON := Support/AppIcon.png
+DMG := $(BUILD_DIR)/$(APP_NAME).dmg
+DMG_STAGE := $(BUILD_DIR)/dmg
 INSTALL_DIR ?= /Applications
 
 .PHONY: all
@@ -31,6 +33,15 @@ $(ICON): Support/IconRenderer.swift Sources/Pt/WalkerView.swift
 
 $(README_ICON): $(ICON)
 	cp "$(BUILD_DIR)/AppIcon.iconset/icon_256x256@2x.png" "$@"
+
+.PHONY: dmg
+dmg: app
+	rm -rf "$(DMG_STAGE)" "$(DMG)"
+	mkdir -p "$(DMG_STAGE)"
+	ditto "$(APP)" "$(DMG_STAGE)/$(APP_NAME).app"
+	ln -s /Applications "$(DMG_STAGE)/Applications"
+	hdiutil create -volname "$(APP_NAME)" -srcfolder "$(DMG_STAGE)" -format UDZO "$(DMG)"
+	rm -rf "$(DMG_STAGE)"
 
 .PHONY: install
 install: app
