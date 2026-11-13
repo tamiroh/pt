@@ -201,4 +201,16 @@ final class WalkerTests: XCTestCase {
         walker.advance(seconds: 0.25, width: 100)
         XCTAssertEqual(walker.height, 112.5, accuracy: 0.0001)
     }
+
+    func testDepartureKeepsExpectedStayIndependentOfSpan() {
+        let speed = Walker(randomNumberGenerator: FixedRandom(value: 0)).speed
+        for span in [100.0, 300.0, 1_300.0, 3_000.0] {
+            let traverse = span / speed
+            let expected = traverse / Walker.departureChance(span: span, speed: speed, stay: 120)
+            XCTAssertGreaterThanOrEqual(expected, 120)
+            XCTAssertLessThan(expected, 120 + traverse)
+        }
+        XCTAssertLessThan(Walker.departureChance(span: 300, speed: speed, stay: 120),
+                          Walker.departureChance(span: 3_000, speed: speed, stay: 120))
+    }
 }

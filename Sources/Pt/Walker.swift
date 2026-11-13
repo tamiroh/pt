@@ -8,6 +8,8 @@ struct Walker {
     static let floatSpeed: Double = 50
     static let balloonTrigger: Double = 900
     static let balloonBrake: Double = 1_500
+    static let groundStay: Double = 120
+    static let platformStay: Double = 60
 
     var x: Double = 0
     var direction: Double = -1
@@ -86,7 +88,8 @@ struct Walker {
             remaining = max(0, remaining - elapsed)
             guard elapsed == timeToEdge else { return }
             x = edge
-            if Bool.random(using: &randomNumberGenerator) {
+            let stay = support == nil ? Self.groundStay : Self.platformStay
+            if random(in: 0...1) < Self.departureChance(span: right - left, speed: speed, stay: stay) {
                 guard support != nil else {
                     // At a screen edge on the ground, keep going and leave the screen.
                     leaving = true
@@ -118,6 +121,10 @@ struct Walker {
     private mutating func step(_ seconds: Double) {
         x += direction * speed * seconds
         distance = (distance + speed * seconds).truncatingRemainder(dividingBy: 52)
+    }
+
+    static func departureChance(span: Double, speed: Double, stay: Double) -> Double {
+        1 - exp(-span / speed / stay)
     }
 
     // Uses the raw bits directly; the standard library's float sampling can retry forever
