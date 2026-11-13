@@ -10,6 +10,9 @@ struct Walker {
     static let balloonBrake: Double = 1_500
     static let groundStay: Double = 120
     static let platformStay: Double = 60
+    static let baseSpeed: Double = 27
+    static let loadBoost: Double = 15
+    static let idleLoad: Double = 0.3
 
     var x: Double = 0
     var direction: Double = -1
@@ -25,7 +28,8 @@ struct Walker {
     private var support: WindowPlatform?
     private var departedPlatformID: UInt32?
     private var randomNumberGenerator: any RandomNumberGenerator
-    let speed: Double = 27
+    var speed: Double = baseSpeed
+    var mayLeave = true
 
     var swing: Double { sin(distance / 26 * .pi) * 10 }
     var isFalling: Bool { height > 0 && support == nil }
@@ -89,7 +93,7 @@ struct Walker {
             guard elapsed == timeToEdge else { return }
             x = edge
             let stay = support == nil ? Self.groundStay : Self.platformStay
-            if random(in: 0...1) < Self.departureChance(span: right - left, speed: speed, stay: stay) {
+            if mayLeave, random(in: 0...1) < Self.departureChance(span: right - left, speed: speed, stay: stay) {
                 guard support != nil else {
                     // At a screen edge on the ground, keep going and leave the screen.
                     leaving = true
@@ -121,6 +125,11 @@ struct Walker {
     private mutating func step(_ seconds: Double) {
         x += direction * speed * seconds
         distance = (distance + speed * seconds).truncatingRemainder(dividingBy: 52)
+    }
+
+    static func walkingSpeed(load: Double) -> Double {
+        let excess = (load - idleLoad) / (1 - idleLoad)
+        return baseSpeed * (1 + loadBoost * min(1, max(0, excess)))
     }
 
     static func departureChance(span: Double, speed: Double, stay: Double) -> Double {

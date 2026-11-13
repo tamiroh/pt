@@ -35,6 +35,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var dragging = false
     private var platforms: [WindowPlatform] = []
     private var nextPlatformRefresh: CFTimeInterval = 0
+    private var systemLoad = SystemLoad()
+    private var targetLoad: Double = 0
+    private var load: Double = 0
+    private var nextLoadSample: CFTimeInterval = 0
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         window = makeWindow(for: walkerView)
@@ -122,8 +126,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             platforms = WindowPlatforms().read(ground: ground, walkerSize: walkerView.bounds.size)
             nextPlatformRefresh = now + 0.1
         }
+        if now >= nextLoadSample {
+            targetLoad = systemLoad.sample()
+            nextLoadSample = now + 1
+        }
+        let elapsed = min(max(0, now - previousTime), 0.1)
+        load += (targetLoad - load) * (1 - exp(-elapsed / 0.8))
+        walker.speed = Walker.walkingSpeed(load: load)
+        walker.mayLeave = load <= Walker.idleLoad
         let wasFalling = walker.isFalling
-        walker.advance(seconds: min(max(0, now - previousTime), 0.1),
+        walker.advance(seconds: elapsed,
                        width: ground.width - walkerView.bounds.width,
                        walking: !paused && !contextMenu.isOpen,
                        platforms: platforms,

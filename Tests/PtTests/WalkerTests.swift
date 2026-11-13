@@ -213,4 +213,43 @@ final class WalkerTests: XCTestCase {
         XCTAssertLessThan(Walker.departureChance(span: 300, speed: speed, stay: 120),
                           Walker.departureChance(span: 3_000, speed: speed, stay: 120))
     }
+
+    func testWalkingSpeedScalesWithLoad() {
+        XCTAssertEqual(Walker.walkingSpeed(load: 0), Walker.baseSpeed)
+        XCTAssertEqual(Walker.walkingSpeed(load: Walker.idleLoad), Walker.baseSpeed)
+        XCTAssertEqual(Walker.walkingSpeed(load: (1 + Walker.idleLoad) / 2),
+                       Walker.baseSpeed * (1 + Walker.loadBoost / 2), accuracy: 0.0001)
+        XCTAssertEqual(Walker.walkingSpeed(load: 1), Walker.baseSpeed * (1 + Walker.loadBoost))
+        XCTAssertEqual(Walker.walkingSpeed(load: 3), Walker.baseSpeed * (1 + Walker.loadBoost))
+        XCTAssertEqual(Walker.walkingSpeed(load: -1), Walker.baseSpeed)
+    }
+
+    func testFasterWalkerCoversMoreGround() {
+        var walker = Walker(x: 0, direction: 1, randomNumberGenerator: FixedRandom(value: .max))
+        walker.speed = Walker.walkingSpeed(load: 1)
+        walker.advance(seconds: 1, width: 1_000)
+        XCTAssertEqual(walker.x, Walker.baseSpeed * (1 + Walker.loadBoost), accuracy: 0.0001)
+    }
+
+    func testStaysOnScreenWhileNotAllowedToLeave() {
+        var walker = Walker(x: 1, direction: -1, randomNumberGenerator: FixedRandom(value: 0))
+        walker.mayLeave = false
+        walker.advance(seconds: 20, width: 100)
+        XCTAssertFalse(walker.isOffstage)
+        XCTAssertTrue((0...100).contains(walker.x))
+        walker.mayLeave = true
+        walker.advance(seconds: 10, width: 100)
+        XCTAssertTrue(walker.isOffstage)
+    }
+
+    func testStaysOnWindowWhileNotAllowedToLeave() {
+        var walker = Walker(x: 50, randomNumberGenerator: FixedRandom(value: 0))
+        let platform = WindowPlatform(id: 1, frame: CGRect(x: 0, y: 0, width: 100, height: 60),
+                                      spans: [0...100])
+        walker.drop(from: 60)
+        walker.mayLeave = false
+        walker.advance(seconds: 20, width: 500, platforms: [platform])
+        XCTAssertEqual(walker.height, 60)
+        XCTAssertFalse(walker.isFalling)
+    }
 }
