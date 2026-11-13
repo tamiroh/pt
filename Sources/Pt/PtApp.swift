@@ -25,6 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var balloonWindow: NSWindow!
     private var balloonHeld = false
     private var balloonReleased: CFTimeInterval?
+    private var balloonPopped: CFTimeInterval?
     private var bubble: Bubble?
     private var timer: Timer?
     private var walker = Walker()
@@ -49,6 +50,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         balloonWindow = makeWindow(for: balloonView)
         balloonWindow.ignoresMouseEvents = true
         balloonWindow.alphaValue = 0
+        balloonView.onPop = { [weak self] in self?.popBalloon() }
         walkerView.onDragStarted = { [weak self] in self?.beginDragging() }
         walkerView.onDragEnded = { [weak self] in self?.endDragging() }
         walkerView.onMenuRequested = { [weak self] in self?.showMenu() }
@@ -165,7 +167,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let width = bubbleWindow.frame.width
         let floating = walker.isFloating
         let center = floating ? balloonWindow.frame.midX : window.frame.midX
-        let top = floating ? balloonWindow.frame.maxY : window.frame.minY + WalkerView.headTop
+        let top = floating ? balloonWindow.frame.maxY - BalloonView.burstRoom
+            : window.frame.minY + WalkerView.headTop
         let x = max(ground.minX, min(center - width / 2, ground.maxX - width))
         bubbleWindow.setFrameOrigin(NSPoint(
             x: x, y: top + BubbleView.gap - BubbleView.margin))
@@ -173,10 +176,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         bubbleView.needsDisplay = true
     }
 
+    private func popBalloon() {
+        guard walker.isFloating, !dragging else { return }
+        walker.popBalloon()
+        balloonHeld = false
+        balloonReleased = nil
+        balloonPopped = CACurrentMediaTime()
+        balloonView.burst = 0
+        balloonView.needsDisplay = true
+        displayWalker()
+    }
+
     private func displayBalloon(at now: CFTimeInterval, elapsed: CFTimeInterval) {
+        balloonWindow.ignoresMouseEvents = !(walker.isFloating && !dragging)
         if walker.isFloating, !dragging {
             balloonHeld = true
             balloonReleased = nil
+            balloonPopped = nil
+            balloonView.burst = nil
             balloonView.attached = true
             balloonView.sway = walker.sway
             balloonView.needsDisplay = true
@@ -184,6 +201,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 x: ground.minX + CGFloat(walker.x) + (walkerView.bounds.width - balloonWindow.frame.width) / 2,
                 y: ground.minY + CGFloat(walker.height) + WalkerView.headTop))
             balloonWindow.alphaValue = 1
+            return
+        }
+        if let popped = balloonPopped {
+            let progress = (now - popped) / 0.25
+            guard progress < 1 else {
+                balloonPopped = nil
+                balloonView.burst = nil
+                balloonWindow.alphaValue = 0
+                return
+            }
+            balloonView.burst = progress
+            balloonView.needsDisplay = true
             return
         }
         if balloonHeld {

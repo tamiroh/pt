@@ -7,19 +7,44 @@ final class BalloonView: NSView {
     static let balloonSize = NSSize(width: 24, height: 28)
     // Knot offsets from the pivot above the walker, back balloons first.
     static let knots = [CGPoint(x: -13, y: 1), CGPoint(x: 13, y: 2), CGPoint(x: 0, y: 7)]
+    static let burstRoom: CGFloat = 16
     static var size: NSSize {
-        NSSize(width: 80, height: stringLength + 7 + 4 + balloonSize.height + 2)
+        NSSize(width: 80, height: stringLength + 7 + 4 + balloonSize.height + 2 + burstRoom)
     }
 
     // Degrees the walker hangs away from vertical, matching `Walker.sway`.
     var sway: Double = 0
     var attached = true
+    var burst: Double?
+    var onPop: (() -> Void)?
 
     override var isOpaque: Bool { false }
+
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    private var balloons: [CGRect] {
+        Self.knots.map {
+            CGRect(x: bounds.midX + $0.x - Self.balloonSize.width / 2, y: Self.stringLength + $0.y + 4,
+                   width: Self.balloonSize.width, height: Self.balloonSize.height)
+        }
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        let local = convert(point, from: superview)
+        return burst == nil && balloons.contains { $0.contains(local) } ? self : nil
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        onPop?()
+    }
 
     override func draw(_ dirtyRect: NSRect) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
         context.clear(bounds)
+        if let burst {
+            drawBurst(context, progress: burst)
+            return
+        }
         let pivot = CGPoint(x: bounds.midX, y: Self.stringLength)
         let angle = attached ? sway * .pi / 180 : 0
         let end = CGPoint(x: pivot.x + Self.stringLength * sin(angle),
@@ -50,6 +75,19 @@ final class BalloonView: NSView {
                                           width: Self.balloonSize.width,
                                           height: Self.balloonSize.height))
             context.drawPath(using: .fillStroke)
+        }
+    }
+
+    private func drawBurst(_ context: CGContext, progress: Double) {
+        let cluster = balloons.reduce(balloons[0]) { $0.union($1) }
+        let center = CGPoint(x: cluster.midX, y: cluster.midY)
+        let radius = 14 + 14 * progress
+        let dot = 3.5 * (1 - 0.4 * progress)
+        context.setFillColor(NSColor(white: 171.0 / 255, alpha: 1 - progress).cgColor)
+        for index in 0..<10 {
+            let angle = (Double(index) + 0.5) * .pi / 5
+            let point = CGPoint(x: center.x + radius * cos(angle), y: center.y + radius * sin(angle))
+            context.fillEllipse(in: CGRect(x: point.x - dot / 2, y: point.y - dot / 2, width: dot, height: dot))
         }
     }
 }

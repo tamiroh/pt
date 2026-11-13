@@ -252,4 +252,28 @@ final class WalkerTests: XCTestCase {
         XCTAssertEqual(walker.height, 60)
         XCTAssertFalse(walker.isFalling)
     }
+
+    func testPoppingBalloonFallsUntilBalloonsOpenAgain() {
+        var walker = Walker(x: 50)
+        walker.drop(from: 3_000)
+        walker.advance(seconds: 3, width: 100, walking: false)
+        XCTAssertTrue(walker.isFloating)
+        walker.popBalloon()
+        XCTAssertFalse(walker.isFloating)
+        XCTAssertTrue(walker.isFalling)
+        let before = walker.height
+        walker.advance(seconds: 0.5, width: 100, walking: false)
+        XCTAssertFalse(walker.isFloating)
+        XCTAssertGreaterThan(before - walker.height, Walker.floatSpeed * 0.5)
+        walker.advance(seconds: 0.5, width: 100, walking: false)
+        XCTAssertTrue(walker.isFloating)
+    }
+
+    func testPoppingWithoutBalloonDoesNothing() {
+        var walker = Walker(x: 50)
+        walker.drop(from: 100)
+        walker.popBalloon()
+        walker.advance(seconds: 0.1, width: 100, walking: false)
+        XCTAssertEqual(walker.height, 100 - 0.5 * Walker.gravity * 0.01, accuracy: 0.0001)
+    }
 }

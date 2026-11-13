@@ -226,6 +226,12 @@ struct Walker {
         if isFloating { floatTime += seconds }
     }
 
+    mutating func popBalloon() {
+        guard isFloating else { return }
+        isFloating = false
+        floatTime = 0
+    }
+
     private mutating func startFloating(speed: Double = floatSpeed) {
         isFloating = true
         floatTime = 0
