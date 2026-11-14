@@ -23,7 +23,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var window: NSWindow!
     private var bubbleWindow: NSWindow!
     private var balloonWindow: NSWindow!
-    private var balloon = Balloon()
     private var bubble: Bubble?
     private var timer: Timer?
     private var walker = Walker()
@@ -120,7 +119,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let floatingOrigin = walker.isFloating && !dragging ? NSPoint(
             x: ground.minX + walker.x + (WalkerView.size.width - BalloonView.size.width) / 2,
             y: ground.minY + walker.height + WalkerView.headTop) : nil
-        balloon.advance(at: now, elapsed: elapsed, floatingOrigin: floatingOrigin, sway: walker.sway)
+        balloonView.advance(at: now, elapsed: elapsed, floatingOrigin: floatingOrigin, sway: walker.sway)
         render(at: now)
     }
 
@@ -157,7 +156,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func render(at now: CFTimeInterval) {
         displayWalker()
-        displayBalloon(at: now)
+        balloonView.render()
         displayBubble(at: now)
         contextMenu.follow(menuAnchor)
     }
@@ -170,7 +169,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             bubbleWindow.setContentSize(BubbleView.size(for: bubble.text))
         }
         let width = bubbleWindow.frame.width
-        let floating = balloon.attached
+        let floating = balloonView.attached
         let center = floating ? balloonWindow.frame.midX : window.frame.midX
         let top = floating ? balloonWindow.frame.maxY - BalloonView.burstRoom
             : window.frame.minY + WalkerView.headTop
@@ -184,17 +183,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func popBalloon() {
         guard walker.isFloating, !dragging else { return }
         walker.popBalloon()
-        balloon.pop(at: CACurrentMediaTime())
-    }
-
-    private func displayBalloon(at now: CFTimeInterval) {
-        balloonWindow.ignoresMouseEvents = !balloon.attached
-        balloonWindow.setFrameOrigin(balloon.origin)
-        balloonWindow.alphaValue = balloon.opacity(at: now)
-        balloonView.burst = balloon.burst(at: now)
-        balloonView.attached = balloon.attached
-        balloonView.sway = balloon.sway
-        balloonView.needsDisplay = true
+        balloonView.pop(at: CACurrentMediaTime())
     }
 
     private func displayWalker() {

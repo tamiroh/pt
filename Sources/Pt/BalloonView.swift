@@ -12,11 +12,72 @@ final class BalloonView: NSView {
         NSSize(width: 80, height: stringLength + 7 + 4 + balloonSize.height + 2 + burstRoom)
     }
 
-    // Degrees the walker hangs away from vertical, matching `Walker.sway`.
-    var sway: Double = 0
-    var attached = true
-    var burst: Double?
+    private enum Animation {
+        case hidden
+        case attached
+        case released(since: Double)
+        case popped(since: Double)
+    }
+
+    private var animation = Animation.hidden
+    private var origin = CGPoint.zero
+    private var sway: Double = 0
+    private var time: Double = 0
     var onPop: (() -> Void)?
+
+    var attached: Bool {
+        if case .attached = animation { return true }
+        return false
+    }
+
+    private var opacity: Double {
+        switch animation {
+        case .hidden: 0
+        case .attached, .popped: 1
+        case .released(let start): max(0, 1 - (time - start) / 1.5)
+        }
+    }
+
+    private var burst: Double? {
+        guard case .popped(let start) = animation else { return nil }
+        return min(1, max(0, (time - start) / 0.25))
+    }
+
+    func pop(at now: Double) {
+        animation = .popped(since: now)
+    }
+
+    func advance(at now: Double, elapsed: Double, floatingOrigin: CGPoint?, sway: Double) {
+        time = now
+        if let floatingOrigin {
+            animation = .attached
+            origin = floatingOrigin
+            self.sway = sway
+            return
+        }
+        switch animation {
+        case .hidden:
+            break
+        case .attached:
+            animation = .released(since: now)
+            origin.y += 70 * elapsed
+        case .released(let start):
+            if now - start >= 1.5 {
+                animation = .hidden
+            } else {
+                origin.y += 70 * elapsed
+            }
+        case .popped(let start):
+            if now - start >= 0.25 { animation = .hidden }
+        }
+    }
+
+    func render() {
+        window?.ignoresMouseEvents = !attached
+        window?.setFrameOrigin(origin)
+        window?.alphaValue = opacity
+        needsDisplay = true
+    }
 
     override var isOpaque: Bool { false }
 
@@ -31,7 +92,7 @@ final class BalloonView: NSView {
 
     override func hitTest(_ point: NSPoint) -> NSView? {
         let local = convert(point, from: superview)
-        return burst == nil && balloons.contains { $0.contains(local) } ? self : nil
+        return attached && balloons.contains { $0.contains(local) } ? self : nil
     }
 
     override func mouseDown(with event: NSEvent) {
