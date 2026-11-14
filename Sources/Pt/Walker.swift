@@ -43,6 +43,12 @@ struct Walker {
         self.randomNumberGenerator = randomNumberGenerator
     }
 
+    mutating func drop(at position: CGPoint, within width: Double) {
+        x = position.x
+        drop(from: position.y)
+        constrain(to: width)
+    }
+
     mutating func drop(from height: Double) {
         self.height = max(0, height)
         fallSpeed = 0

@@ -39,6 +39,12 @@ final class WalkerWindow: NSWindow {
 
     var bubbleAnchor: NSPoint { NSPoint(x: frame.midX, y: frame.minY + Self.headTop) }
 
+    func balloonAnchor(for walker: Walker, on ground: NSRect) -> NSPoint? {
+        guard walker.isFloating, !isDragging else { return nil }
+        return NSPoint(x: ground.minX + walker.x + Self.size.width / 2,
+                       y: ground.minY + walker.height + Self.headTop)
+    }
+
     func advance(seconds: Double) {
         guard isDragging else { return }
         flailPhase = (flailPhase + seconds * 2 * .pi * 7).truncatingRemainder(dividingBy: 2 * .pi)

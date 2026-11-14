@@ -18,116 +18,87 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let walkerWindow = WalkerWindow()
     private let bubbleWindow = BubbleWindow()
     private let balloonWindow = BalloonWindow()
-    private let speech = Speech()
     private let contextMenu = ContextMenuPanel()
-    private var timer: Timer?
+    private let speech = Speech()
+    private let desktop = Desktop(walkerSize: WalkerWindow.size)
+    private let frames = FrameLoop()
     private var walker = Walker()
-    private var ground = NSRect.zero
-    private var screenTop: CGFloat = 0
-    private var previousTime = CACurrentMediaTime()
     private var paused = false
-    private var platforms: [WindowPlatform] = []
-    private var nextPlatformRefresh: CFTimeInterval = 0
-    private var systemLoad = SystemLoad()
-    private var targetLoad: Double = 0
-    private var load: Double = 0
-    private var nextLoadSample: CFTimeInterval = 0
+
+    private var walking: Bool { !paused && !contextMenu.isOpen }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        balloonWindow.onPop = { [weak self] in self?.popBalloon() }
-        walkerWindow.onDragEnded = { [weak self] origin in self?.endDragging(at: origin) }
-        walkerWindow.onMenuRequested = { [weak self] in self?.showMenu() }
+        connectInput()
         updateScreen()
-        walker.x = max(0, (ground.width - WalkerWindow.size.width) / 2)
+        walker.x = desktop.walkingWidth / 2
         render()
-        walkerWindow.orderFrontRegardless()
-        balloonWindow.order(.below, relativeTo: walkerWindow.windowNumber)
-        walkerWindow.addChildWindow(bubbleWindow, ordered: .above)
+        presentWindows()
         speech.prepare()
         NotificationCenter.default.addObserver(self, selector: #selector(updateScreen),
             name: NSApplication.didChangeScreenParametersNotification, object: nil)
-        previousTime = CACurrentMediaTime()
-        let timer = Timer(timeInterval: 1.0 / 60, target: self,
-                          selector: #selector(tick), userInfo: nil, repeats: true)
-        timer.tolerance = 1.0 / 600
-        RunLoop.main.add(timer, forMode: .common)
-        self.timer = timer
+        frames.start { [weak self] frame in self?.advance(frame) }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        timer?.invalidate()
+        frames.stop()
+        contextMenu.close()
     }
 
-    private func showMenu() {
-        bubbleWindow.dismiss()
-        contextMenu.open([
-            .init(title: paused ? "Resume Walking" : "Pause") { [weak self] in self?.togglePause() },
-            .init(title: "Quit Pt") { NSApplication.shared.terminate(nil) },
-        ], from: walkerWindow.menuAnchor)
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 
-    @objc private func updateScreen() {
-        guard let screen = walkerWindow.screen ?? NSScreen.screens.first else { return }
-        ground = screen.visibleFrame
-        screenTop = screen.frame.maxY
-        nextPlatformRefresh = 0
-        guard !walkerWindow.isDragging else { return }
-        walker.constrain(to: ground.width - WalkerWindow.size.width)
+    private func connectInput() {
+        walkerWindow.onDragEnded = { [weak self] origin in self?.dropWalker(at: origin) }
+        walkerWindow.onMenuRequested = { [weak self] in self?.showMenu() }
+        balloonWindow.onPop = { [weak self] in self?.popBalloon() }
     }
 
-    @objc private func tick() {
-        let now = CACurrentMediaTime()
-        let elapsed = min(max(0, now - previousTime), 0.1)
-        previousTime = now
-        walkerWindow.advance(seconds: elapsed)
-        advance(at: now, seconds: elapsed)
-        bubbleWindow.advance(at: now)
-        let floatingOrigin = walker.isFloating && !walkerWindow.isDragging ? NSPoint(
-            x: ground.minX + walker.x + (WalkerWindow.size.width - balloonWindow.frame.width) / 2,
-            y: ground.minY + walker.height + WalkerWindow.headTop) : nil
-        balloonWindow.advance(at: now, elapsed: elapsed, floatingOrigin: floatingOrigin, sway: walker.sway)
+    private func presentWindows() {
+        walkerWindow.orderFrontRegardless()
+        balloonWindow.order(.below, relativeTo: walkerWindow.windowNumber)
+        walkerWindow.addChildWindow(bubbleWindow, ordered: .above)
+    }
+
+    private func advance(_ frame: FrameLoop.Frame) {
+        advanceWalker(frame)
+        walkerWindow.advance(seconds: frame.seconds)
+        bubbleWindow.advance(at: frame.time)
+        balloonWindow.advance(at: frame.time, elapsed: frame.seconds,
+                              anchor: walkerWindow.balloonAnchor(for: walker, on: desktop.ground),
+                              sway: walker.sway)
         render()
     }
 
-    private func advance(at now: CFTimeInterval, seconds elapsed: Double) {
+    private func advanceWalker(_ frame: FrameLoop.Frame) {
         guard !walkerWindow.isDragging else { return }
-        if now >= nextPlatformRefresh {
-            platforms = WindowPlatforms().read(ground: ground, walkerSize: WalkerWindow.size)
-            nextPlatformRefresh = now + 0.1
-        }
-        if now >= nextLoadSample {
-            targetLoad = systemLoad.sample()
-            nextLoadSample = now + 1
-        }
-        load += (targetLoad - load) * (1 - exp(-elapsed / 0.8))
-        walker.speed = Walker.walkingSpeed(load: load)
-        walker.mayLeave = load <= Walker.idleLoad
+        desktop.advance(frame)
+        walker.speed = Walker.walkingSpeed(load: desktop.load)
+        walker.mayLeave = desktop.load <= Walker.idleLoad
         let wasFalling = walker.isFalling
-        walker.advance(seconds: elapsed,
-                       width: ground.width - WalkerWindow.size.width,
-                       walking: !paused && !contextMenu.isOpen,
-                       platforms: platforms,
-                       ceiling: screenTop - ground.minY)
-        // The balloon already sits where the bubble would go.
+        walker.advance(seconds: frame.seconds, width: desktop.walkingWidth, walking: walking,
+                       platforms: desktop.platforms, ceiling: desktop.ceiling)
         if walker.isFalling, !wasFalling, !walker.isFloating { speak() }
     }
 
-    private func speak() {
-        guard !bubbleWindow.isPresent, let text = speech.take() else { return }
-        bubbleWindow.show(text, at: CACurrentMediaTime(), life: .random(in: 2.2...4.2))
-    }
-
     private func render() {
-        walkerWindow.render(walker, on: ground, walking: !paused && !contextMenu.isOpen)
+        walkerWindow.render(walker, on: desktop.ground, walking: walking)
         balloonWindow.render()
-        displayBubble()
+        let anchor = balloonWindow.attached ? balloonWindow.bubbleAnchor : walkerWindow.bubbleAnchor
+        bubbleWindow.render(anchor: anchor, within: desktop.ground)
         contextMenu.follow(walkerWindow.menuAnchor)
     }
 
-    private func displayBubble() {
-        let anchor = balloonWindow.attached ? balloonWindow.bubbleAnchor
-            : walkerWindow.bubbleAnchor
-        bubbleWindow.render(anchor: anchor, within: ground)
+    @objc private func updateScreen() {
+        desktop.selectScreen(walkerWindow.screen)
+        if !walkerWindow.isDragging { walker.constrain(to: desktop.walkingWidth) }
+    }
+
+    private func dropWalker(at origin: NSPoint) {
+        desktop.selectScreen(at: origin)
+        walker.drop(at: desktop.localPosition(origin), within: desktop.walkingWidth)
+        if walker.isFalling { speak() }
+        frames.resetTime()
     }
 
     private func popBalloon() {
@@ -136,26 +107,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         balloonWindow.pop(at: CACurrentMediaTime())
     }
 
-    private func endDragging(at dragOrigin: NSPoint) {
-        let frame = NSRect(origin: dragOrigin, size: WalkerWindow.size)
-        let screen = NSScreen.screens.max {
-            let left = $0.frame.intersection(frame)
-            let right = $1.frame.intersection(frame)
-            return left.width * left.height < right.width * right.height
-        }
-        if let screen {
-            ground = screen.visibleFrame
-            screenTop = screen.frame.maxY
-        }
-        walker.x = dragOrigin.x - ground.minX
-        walker.drop(from: dragOrigin.y - ground.minY)
-        walker.constrain(to: ground.width - WalkerWindow.size.width)
-        if walker.isFalling { speak() }
-        nextPlatformRefresh = 0
-        previousTime = CACurrentMediaTime()
+    private func speak() {
+        guard !bubbleWindow.isPresent, let text = speech.take() else { return }
+        bubbleWindow.show(text, at: CACurrentMediaTime(), life: .random(in: 2.2...4.2))
     }
 
-    private func togglePause() {
-        paused.toggle()
+    private func showMenu() {
+        bubbleWindow.dismiss()
+        contextMenu.open([
+            .init(title: paused ? "Resume Walking" : "Pause") { [weak self] in self?.paused.toggle() },
+            .init(title: "Quit Pt") { NSApplication.shared.terminate(nil) },
+        ], from: walkerWindow.menuAnchor)
     }
 }

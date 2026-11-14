@@ -73,11 +73,11 @@ final class BalloonWindow: NSWindow {
         animation = .popped(since: now)
     }
 
-    func advance(at now: Double, elapsed: Double, floatingOrigin: CGPoint?, sway: Double) {
+    func advance(at now: Double, elapsed: Double, anchor: CGPoint?, sway: Double) {
         time = now
-        if let floatingOrigin {
+        if let anchor {
             animation = .attached
-            origin = floatingOrigin
+            origin = CGPoint(x: anchor.x - frame.width / 2, y: anchor.y)
             self.sway = sway
             return
         }
