@@ -19,7 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let bubbleWindow = BubbleWindow()
     private let balloonWindow = BalloonWindow()
     private let speech = Speech()
-    private let contextMenu = ContextMenu()
+    private let contextMenu = ContextMenuPanel()
     private var window: NSWindow!
     private var timer: Timer?
     private var walker = Walker()

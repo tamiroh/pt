@@ -1,19 +1,34 @@
 import AppKit
 
 @MainActor
-final class ContextMenu {
+final class ContextMenuPanel: NSPanel {
     struct Item {
         let title: String
         let action: () -> Void
     }
 
-    static let gap: CGFloat = 4
+    private static let gap: CGFloat = 4
 
-    private var panel: NSPanel?
     private var view: View?
     private var monitors: [Any] = []
 
-    var isOpen: Bool { panel != nil }
+    init() {
+        super.init(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel],
+                   backing: .buffered, defer: false)
+        isOpaque = false
+        backgroundColor = .clear
+        hasShadow = false
+        level = .popUpMenu
+        collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        isReleasedWhenClosed = false
+        acceptsMouseMovedEvents = true
+    }
+
+    required init?(coder: NSCoder) { nil }
+
+    override var canBecomeKey: Bool { true }
+
+    var isOpen: Bool { view != nil }
 
     func open(_ items: [Item], from anchor: NSRect) {
         close()
@@ -22,22 +37,12 @@ final class ContextMenu {
             item.action()
         }
         view.onCancel = { [weak self] in self?.close() }
-        let panel = Panel(contentRect: view.frame,
-                          styleMask: [.borderless, .nonactivatingPanel],
-                          backing: .buffered, defer: false)
-        panel.isOpaque = false
-        panel.backgroundColor = .clear
-        panel.hasShadow = false
-        panel.level = .popUpMenu
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        panel.isReleasedWhenClosed = false
-        panel.acceptsMouseMovedEvents = true
-        panel.contentView = view
-        self.panel = panel
+        setContentSize(view.frame.size)
+        contentView = view
         self.view = view
         follow(anchor)
-        panel.makeKeyAndOrderFront(nil)
-        panel.makeFirstResponder(view)
+        makeKeyAndOrderFront(nil)
+        makeFirstResponder(view)
         let clicks: NSEvent.EventTypeMask = [.leftMouseDown, .rightMouseDown, .otherMouseDown]
         monitors = [
             NSEvent.addGlobalMonitorForEvents(matching: clicks) { [weak self] _ in
@@ -45,7 +50,7 @@ final class ContextMenu {
             },
             NSEvent.addLocalMonitorForEvents(matching: clicks) { [weak self] event in
                 MainActor.assumeIsolated {
-                    if let self, event.window !== self.panel { self.close() }
+                    if let self, event.window !== self { self.close() }
                 }
                 return event
             },
@@ -53,7 +58,7 @@ final class ContextMenu {
     }
 
     func follow(_ anchor: NSRect) {
-        guard let panel, let view else { return }
+        guard let view else { return }
         let center = NSPoint(x: anchor.midX, y: anchor.midY)
         let screen = NSScreen.screens.first { $0.frame.contains(center) } ?? NSScreen.main
         let bounds = screen?.visibleFrame ?? .infinite
@@ -64,20 +69,15 @@ final class ContextMenu {
                     max(bounds.minX, bounds.maxX - size.width))
         view.tailUp = !above
         view.tailX = anchor.midX - x
-        panel.setFrameOrigin(NSPoint(x: x, y: y))
+        setFrameOrigin(NSPoint(x: x, y: y))
     }
 
-    func close() {
-        guard let panel else { return }
+    override func close() {
         monitors.forEach(NSEvent.removeMonitor)
         monitors = []
-        panel.orderOut(nil)
-        self.panel = nil
         view = nil
-    }
-
-    private final class Panel: NSPanel {
-        override var canBecomeKey: Bool { true }
+        contentView = nil
+        super.close()
     }
 
     @MainActor
