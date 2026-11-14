@@ -16,13 +16,11 @@ struct PtApp {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let walkerView = WalkerView(frame: NSRect(origin: .zero, size: WalkerView.size))
-    private let bubbleView = BubbleView(frame: .zero)
-    private let balloonView = BalloonView(frame: NSRect(origin: .zero, size: BalloonView.size))
+    private let bubbleWindow = BubbleWindow()
+    private let balloonWindow = BalloonWindow()
     private let speech = Speech()
     private let contextMenu = ContextMenu()
     private var window: NSWindow!
-    private var bubbleWindow: NSWindow!
-    private var balloonWindow: NSWindow!
     private var timer: Timer?
     private var walker = Walker()
     private var ground = NSRect.zero
@@ -41,13 +39,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         window = makeWindow(for: walkerView)
-        bubbleWindow = makeWindow(for: bubbleView)
-        bubbleWindow.ignoresMouseEvents = true
-        bubbleWindow.alphaValue = 0
-        balloonWindow = makeWindow(for: balloonView)
-        balloonWindow.ignoresMouseEvents = true
-        balloonWindow.alphaValue = 0
-        balloonView.onPop = { [weak self] in self?.popBalloon() }
+        balloonWindow.onPop = { [weak self] in self?.popBalloon() }
         walkerView.onDragStarted = { [weak self] origin in self?.dragOrigin = origin }
         walkerView.onDragMoved = { [weak self] origin in self?.dragOrigin = origin }
         walkerView.onDragEnded = { [weak self] in self?.endDragging() }
@@ -93,7 +85,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func showMenu() {
-        bubbleView.dismiss()
+        bubbleWindow.dismiss()
         contextMenu.open([
             .init(title: paused ? "Resume Walking" : "Pause") { [weak self] in self?.togglePause() },
             .init(title: "Quit Pt") { NSApplication.shared.terminate(nil) },
@@ -114,11 +106,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let elapsed = min(max(0, now - previousTime), 0.1)
         previousTime = now
         advance(at: now, seconds: elapsed)
-        bubbleView.advance(at: now)
+        bubbleWindow.advance(at: now)
         let floatingOrigin = walker.isFloating && !dragging ? NSPoint(
-            x: ground.minX + walker.x + (WalkerView.size.width - BalloonView.size.width) / 2,
+            x: ground.minX + walker.x + (WalkerView.size.width - balloonWindow.frame.width) / 2,
             y: ground.minY + walker.height + WalkerView.headTop) : nil
-        balloonView.advance(at: now, elapsed: elapsed, floatingOrigin: floatingOrigin, sway: walker.sway)
+        balloonWindow.advance(at: now, elapsed: elapsed, floatingOrigin: floatingOrigin, sway: walker.sway)
         render()
     }
 
@@ -149,29 +141,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func speak() {
-        guard !bubbleView.isPresent, let text = speech.take() else { return }
-        bubbleView.show(text, at: CACurrentMediaTime(), life: .random(in: 2.2...4.2))
+        guard !bubbleWindow.isPresent, let text = speech.take() else { return }
+        bubbleWindow.show(text, at: CACurrentMediaTime(), life: .random(in: 2.2...4.2))
     }
 
     private func render() {
         displayWalker()
-        balloonView.render()
+        balloonWindow.render()
         displayBubble()
         contextMenu.follow(menuAnchor)
     }
 
     private func displayBubble() {
-        let floating = balloonView.attached
-        let center = floating ? balloonWindow.frame.midX : window.frame.midX
-        let top = floating ? balloonWindow.frame.maxY - BalloonView.burstRoom
-            : window.frame.minY + WalkerView.headTop
-        bubbleView.render(anchor: NSPoint(x: center, y: top), within: ground)
+        let anchor = balloonWindow.attached ? balloonWindow.bubbleAnchor
+            : NSPoint(x: window.frame.midX, y: window.frame.minY + WalkerView.headTop)
+        bubbleWindow.render(anchor: anchor, within: ground)
     }
 
     private func popBalloon() {
         guard walker.isFloating, !dragging else { return }
         walker.popBalloon()
-        balloonView.pop(at: CACurrentMediaTime())
+        balloonWindow.pop(at: CACurrentMediaTime())
     }
 
     private func displayWalker() {
@@ -180,7 +170,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             window.setFrameOrigin(dragOrigin)
         } else {
             let angle = walker.sway * .pi / 180
-            let length = floating ? BalloonView.stringLength : 0
+            let length = floating ? BalloonWindow.stringLength : 0
             window.setFrameOrigin(NSPoint(x: ground.minX + walker.x + length * sin(angle),
                                           y: ground.minY + walker.height + length * (1 - cos(angle))))
         }
