@@ -1,20 +1,5 @@
 import AppKit
 
-struct Bubble {
-    static let fade: Double = 0.2
-
-    let text: String
-    let born: Double
-    let life: Double
-
-    func isOver(at now: Double) -> Bool { now - born >= life }
-
-    func opacity(at now: Double) -> Double {
-        let age = now - born
-        return min(1, max(0, min(age / Self.fade, (life - age) / Self.fade)))
-    }
-}
-
 @MainActor
 final class BubbleView: NSView {
     // Proportions come from the website's bubble, which is drawn for a 0.07 walker.
@@ -37,8 +22,42 @@ final class BubbleView: NSView {
                       height: height + tail + 2 * margin)
     }
 
-    var text = ""
-    var tailX: CGFloat = 0
+    private var content: Content?
+    private var time: Double = 0
+    private var renderedText: String?
+    private var tailX: CGFloat = 0
+    private var text: String { content?.text ?? "" }
+
+    var isPresent: Bool { content != nil }
+
+    func show(_ text: String, at now: Double, life: Double) {
+        content = Content(text: text, born: now, life: life)
+        time = now
+    }
+
+    func dismiss() {
+        content = nil
+    }
+
+    func advance(at now: Double) {
+        time = now
+        if let content, content.isOver(at: now) { self.content = nil }
+    }
+
+    func render(anchor: NSPoint, within ground: NSRect) {
+        guard let window else { return }
+        window.alphaValue = content?.opacity(at: time) ?? 0
+        guard let content else { return }
+        if renderedText != content.text {
+            window.setContentSize(Self.size(for: content.text))
+            renderedText = content.text
+        }
+        let width = window.frame.width
+        let x = max(ground.minX, min(anchor.x - width / 2, ground.maxX - width))
+        window.setFrameOrigin(NSPoint(x: x, y: anchor.y + Self.gap - Self.margin))
+        tailX = anchor.x - x
+        needsDisplay = true
+    }
 
     override var isOpaque: Bool { false }
 
@@ -83,5 +102,20 @@ final class BubbleView: NSView {
         (text as NSString).draw(at: NSPoint(x: bounds.midX - size.width / 2,
                                             y: (bottom + top) / 2 - size.height / 2),
                                 withAttributes: Self.attributes)
+    }
+
+    private struct Content {
+        static let fade: Double = 0.2
+
+        let text: String
+        let born: Double
+        let life: Double
+
+        func isOver(at now: Double) -> Bool { now - born >= life }
+
+        func opacity(at now: Double) -> Double {
+            let age = now - born
+            return min(1, max(0, min(age / Self.fade, (life - age) / Self.fade)))
+        }
     }
 }

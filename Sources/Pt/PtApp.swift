@@ -23,7 +23,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var window: NSWindow!
     private var bubbleWindow: NSWindow!
     private var balloonWindow: NSWindow!
-    private var bubble: Bubble?
     private var timer: Timer?
     private var walker = Walker()
     private var ground = NSRect.zero
@@ -55,7 +54,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         walkerView.onMenuRequested = { [weak self] in self?.showMenu() }
         updateScreen()
         walker.x = max(0, (ground.width - walkerView.bounds.width) / 2)
-        render(at: CACurrentMediaTime())
+        render()
         window.orderFrontRegardless()
         balloonWindow.order(.below, relativeTo: window.windowNumber)
         window.addChildWindow(bubbleWindow, ordered: .above)
@@ -94,7 +93,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func showMenu() {
-        bubble = nil
+        bubbleView.dismiss()
         contextMenu.open([
             .init(title: paused ? "Resume Walking" : "Pause") { [weak self] in self?.togglePause() },
             .init(title: "Quit Pt") { NSApplication.shared.terminate(nil) },
@@ -115,12 +114,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let elapsed = min(max(0, now - previousTime), 0.1)
         previousTime = now
         advance(at: now, seconds: elapsed)
-        if let bubble, bubble.isOver(at: now) { self.bubble = nil }
+        bubbleView.advance(at: now)
         let floatingOrigin = walker.isFloating && !dragging ? NSPoint(
             x: ground.minX + walker.x + (WalkerView.size.width - BalloonView.size.width) / 2,
             y: ground.minY + walker.height + WalkerView.headTop) : nil
         balloonView.advance(at: now, elapsed: elapsed, floatingOrigin: floatingOrigin, sway: walker.sway)
-        render(at: now)
+        render()
     }
 
     private func advance(at now: CFTimeInterval, seconds elapsed: Double) {
@@ -150,34 +149,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func speak() {
-        guard bubble == nil, let text = speech.take() else { return }
-        bubble = Bubble(text: text, born: CACurrentMediaTime(), life: .random(in: 2.2...4.2))
+        guard !bubbleView.isPresent, let text = speech.take() else { return }
+        bubbleView.show(text, at: CACurrentMediaTime(), life: .random(in: 2.2...4.2))
     }
 
-    private func render(at now: CFTimeInterval) {
+    private func render() {
         displayWalker()
         balloonView.render()
-        displayBubble(at: now)
+        displayBubble()
         contextMenu.follow(menuAnchor)
     }
 
-    private func displayBubble(at now: CFTimeInterval) {
-        bubbleWindow.alphaValue = bubble?.opacity(at: now) ?? 0
-        guard let bubble else { return }
-        if bubbleView.text != bubble.text {
-            bubbleView.text = bubble.text
-            bubbleWindow.setContentSize(BubbleView.size(for: bubble.text))
-        }
-        let width = bubbleWindow.frame.width
+    private func displayBubble() {
         let floating = balloonView.attached
         let center = floating ? balloonWindow.frame.midX : window.frame.midX
         let top = floating ? balloonWindow.frame.maxY - BalloonView.burstRoom
             : window.frame.minY + WalkerView.headTop
-        let x = max(ground.minX, min(center - width / 2, ground.maxX - width))
-        bubbleWindow.setFrameOrigin(NSPoint(
-            x: x, y: top + BubbleView.gap - BubbleView.margin))
-        bubbleView.tailX = center - x
-        bubbleView.needsDisplay = true
+        bubbleView.render(anchor: NSPoint(x: center, y: top), within: ground)
     }
 
     private func popBalloon() {
