@@ -15,7 +15,8 @@ final class WalkerView: NSView {
     // Hanging from a balloon: legs tucked away, body tilted by `sway` degrees about the head.
     var floating = false
     var sway: Double = 0
-    var onDragStarted: (() -> Void)?
+    var onDragStarted: ((NSPoint) -> Void)?
+    var onDragMoved: ((NSPoint) -> Void)?
     var onDragEnded: (() -> Void)?
     var onMenuRequested: (() -> Void)?
     private var dragOffset: NSPoint?
@@ -34,14 +35,13 @@ final class WalkerView: NSView {
         let pointer = window.convertPoint(toScreen: event.locationInWindow)
         dragOffset = NSPoint(x: pointer.x - window.frame.minX,
                              y: pointer.y - window.frame.minY)
-        onDragStarted?()
+        onDragStarted?(window.frame.origin)
     }
 
     override func mouseDragged(with event: NSEvent) {
         guard let window, let dragOffset else { return }
         let pointer = window.convertPoint(toScreen: event.locationInWindow)
-        window.setFrameOrigin(NSPoint(x: pointer.x - dragOffset.x,
-                                      y: pointer.y - dragOffset.y))
+        onDragMoved?(NSPoint(x: pointer.x - dragOffset.x, y: pointer.y - dragOffset.y))
     }
 
     override func mouseUp(with event: NSEvent) {

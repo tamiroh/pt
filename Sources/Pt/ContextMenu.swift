@@ -9,7 +9,6 @@ final class ContextMenu {
 
     static let gap: CGFloat = 4
 
-    var onClose: (() -> Void)?
     private var panel: NSPanel?
     private var view: ContextMenuView?
     private var monitors: [Any] = []
@@ -75,7 +74,6 @@ final class ContextMenu {
         panel.orderOut(nil)
         self.panel = nil
         view = nil
-        onClose?()
     }
 }
 
