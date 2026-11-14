@@ -75,7 +75,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func makeWindow(for view: NSView) -> NSWindow {
-        let window = UnconstrainedWindow(contentRect: view.bounds, styleMask: [.borderless],
+        let window = Window(contentRect: view.bounds, styleMask: [.borderless],
                               backing: .buffered, defer: false)
         window.isOpaque = false
         window.backgroundColor = .clear
@@ -231,10 +231,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func togglePause() {
         paused.toggle()
     }
-}
 
-final class UnconstrainedWindow: NSWindow {
-    override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
-        frameRect
+    private final class Window: NSWindow {
+        override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
+            frameRect
+        }
     }
 }
