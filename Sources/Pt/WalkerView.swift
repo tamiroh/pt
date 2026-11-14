@@ -1,7 +1,7 @@
 import AppKit
 
 @MainActor
-final class WalkerView: NSView {
+class WalkerView: NSView {
     static let scale: CGFloat = 0.05
     static var size: NSSize {
         NSSize(width: 400 * scale + 20, height: 700 * scale + 7)
@@ -15,45 +15,8 @@ final class WalkerView: NSView {
     // Hanging from a balloon: legs tucked away, body tilted by `sway` degrees about the head.
     var floating = false
     var sway: Double = 0
-    var onDragStarted: ((NSPoint) -> Void)?
-    var onDragMoved: ((NSPoint) -> Void)?
-    var onDragEnded: (() -> Void)?
-    var onMenuRequested: (() -> Void)?
-    private var dragOffset: NSPoint?
 
     override var isOpaque: Bool { false }
-
-    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
-
-    override func rightMouseDown(with event: NSEvent) {
-        onMenuRequested?()
-    }
-
-    override func mouseDown(with event: NSEvent) {
-        guard let window else { return }
-        if event.modifierFlags.contains(.control) { return rightMouseDown(with: event) }
-        let pointer = window.convertPoint(toScreen: event.locationInWindow)
-        dragOffset = NSPoint(x: pointer.x - window.frame.minX,
-                             y: pointer.y - window.frame.minY)
-        onDragStarted?(window.frame.origin)
-    }
-
-    override func mouseDragged(with event: NSEvent) {
-        guard let window, let dragOffset else { return }
-        let pointer = window.convertPoint(toScreen: event.locationInWindow)
-        onDragMoved?(NSPoint(x: pointer.x - dragOffset.x, y: pointer.y - dragOffset.y))
-    }
-
-    override func mouseUp(with event: NSEvent) {
-        guard dragOffset != nil else { return }
-        mouseDragged(with: event)
-        dragOffset = nil
-        onDragEnded?()
-    }
-
-    override func resetCursorRects() {
-        addCursorRect(bounds, cursor: .openHand)
-    }
 
     override func draw(_ dirtyRect: NSRect) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
