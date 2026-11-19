@@ -152,7 +152,7 @@ final class BalloonWindow: NSWindow {
             context.setFillColor(NSColor.white.cgColor)
             context.setLineCap(.round)
             context.setLineJoin(.round)
-            context.setLineWidth(1)
+            context.setLineWidth(2)
             for knot in knots {
                 context.move(to: knot)
                 // A slight bow keeps the strings from looking like rigid rods.
@@ -161,7 +161,6 @@ final class BalloonWindow: NSWindow {
             }
             context.strokePath()
 
-            context.setLineWidth(2)
             for knot in knots {
                 context.move(to: CGPoint(x: knot.x, y: knot.y + 4.5))
                 context.addLine(to: CGPoint(x: knot.x - 3, y: knot.y))
