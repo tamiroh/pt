@@ -1,0 +1,29 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  dmg:
+    runs-on: xcode-27
+    timeout-minutes: 20
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
+      TAG: ${{ github.event.release.tag_name }}
+    steps:
+      - uses: actions/checkout@v4.4.0
+      - name: Build disk image
+        run: |
+          if [[ ! "$TAG" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Expected a release tag such as v1.2.3" >&2
+            exit 1
+          fi
+          make dmg VERSION="${TAG#v}"
+      - name: Upload disk image
+        run: gh release upload "$TAG" build.noindex/Pt.dmg --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}

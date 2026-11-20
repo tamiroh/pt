@@ -26,6 +26,9 @@ app: $(ICON) $(README_ICON)
 	mkdir -p "$(APP)/Contents/MacOS" "$(APP)/Contents/Resources"
 	cp "$$(swift build -c release --show-bin-path)/$(PRODUCT)" "$(APP)/Contents/MacOS/$(PRODUCT)"
 	cp Support/Info.plist "$(APP)/Contents/Info.plist"
+ifneq ($(strip $(VERSION)),)
+	/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $(VERSION)" -c "Set :CFBundleVersion $(VERSION)" "$(APP)/Contents/Info.plist"
+endif
 	cp "$(ICON)" "$(APP)/Contents/Resources/AppIcon.icns"
 	codesign --force --sign - "$(APP)"
 
