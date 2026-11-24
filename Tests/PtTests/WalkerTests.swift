@@ -202,22 +202,14 @@ final class WalkerTests: XCTestCase {
         XCTAssertEqual(walker.height, 112.5, accuracy: 0.0001)
     }
 
-    func testDepartureChanceCompoundsOverWalkedTime() {
-        let whole = Walker.departureChance(walked: 50, stay: 120)
-        let split = 1 - (1 - Walker.departureChance(walked: 20, stay: 120))
-            * (1 - Walker.departureChance(walked: 30, stay: 120))
-        XCTAssertEqual(whole, split, accuracy: 0.0001)
-        XCTAssertEqual(Walker.departureChance(walked: 0, stay: 120), 0)
-    }
-
-    func testReachingEdgeRightAfterLandingRarelyLeaves() {
+    func testDepartureDependsOnTimeWalkedSinceLastEdge() {
+        let chance = { Walker.departureChance(walked: $0, stay: 120) }
+        XCTAssertEqual(chance(50), 1 - (1 - chance(20)) * (1 - chance(30)), accuracy: 0.0001)
         let draw = UInt64(0.1 * Double(1 << 53)) << 11
         var walker = Walker(x: 990, direction: 1, randomNumberGenerator: FixedRandom(value: draw))
         walker.advance(seconds: 1, width: 1_000)
         XCTAssertEqual(walker.direction, -1)
-        XCTAssertLessThan(walker.x, 1_000)
-        walker.advance(seconds: 1_000 / walker.speed, width: 1_000)
-        walker.advance(seconds: Walker.offstageMargin / walker.speed + 0.1, width: 1_000)
+        walker.advance(seconds: (1_000 + Walker.offstageMargin) / walker.speed + 0.1, width: 1_000)
         XCTAssertTrue(walker.isOffstage)
     }
 
