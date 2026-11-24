@@ -24,6 +24,7 @@ struct Walker {
     private var floatTime: Double = 0
     private var leaving = false
     private var awayRemaining: Double = 0
+    private var legTime: Double = 0
     private var fallSpeed: Double = 0
     private var support: WindowPlatform?
     private var departedPlatformID: UInt32?
@@ -57,6 +58,7 @@ struct Walker {
         leaving = false
         isOffstage = false
         isFloating = false
+        legTime = 0
     }
 
     // `ceiling` is the height the walker drops back in from after a trip offstage.
@@ -99,7 +101,9 @@ struct Walker {
             guard elapsed == timeToEdge else { return }
             x = edge
             let stay = support == nil ? Self.groundStay : Self.platformStay
-            if mayLeave, random(in: 0...1) < Self.departureChance(span: right - left, speed: speed, stay: stay) {
+            let walked = legTime
+            legTime = 0
+            if mayLeave, random(in: 0...1) < Self.departureChance(walked: walked, stay: stay) {
                 guard support != nil else {
                     // At a screen edge on the ground, keep going and leave the screen.
                     leaving = true
@@ -130,6 +134,7 @@ struct Walker {
 
     private mutating func step(_ seconds: Double) {
         x += direction * speed * seconds
+        legTime += seconds
         distance = (distance + speed * seconds).truncatingRemainder(dividingBy: 52)
     }
 
@@ -138,8 +143,8 @@ struct Walker {
         return baseSpeed * (1 + loadBoost * min(1, max(0, excess)))
     }
 
-    static func departureChance(span: Double, speed: Double, stay: Double) -> Double {
-        1 - exp(-span / speed / stay)
+    static func departureChance(walked: Double, stay: Double) -> Double {
+        1 - exp(-walked / stay)
     }
 
     // Uses the raw bits directly; the standard library's float sampling can retry forever
@@ -250,6 +255,7 @@ struct Walker {
         fallSpeed = 0
         support = landing
         departedPlatformID = nil
+        legTime = 0
     }
 
     mutating func constrain(to width: Double) {

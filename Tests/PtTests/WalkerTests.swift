@@ -202,16 +202,23 @@ final class WalkerTests: XCTestCase {
         XCTAssertEqual(walker.height, 112.5, accuracy: 0.0001)
     }
 
-    func testDepartureKeepsExpectedStayIndependentOfSpan() {
-        let speed = Walker(randomNumberGenerator: FixedRandom(value: 0)).speed
-        for span in [100.0, 300.0, 1_300.0, 3_000.0] {
-            let traverse = span / speed
-            let expected = traverse / Walker.departureChance(span: span, speed: speed, stay: 120)
-            XCTAssertGreaterThanOrEqual(expected, 120)
-            XCTAssertLessThan(expected, 120 + traverse)
-        }
-        XCTAssertLessThan(Walker.departureChance(span: 300, speed: speed, stay: 120),
-                          Walker.departureChance(span: 3_000, speed: speed, stay: 120))
+    func testDepartureChanceCompoundsOverWalkedTime() {
+        let whole = Walker.departureChance(walked: 50, stay: 120)
+        let split = 1 - (1 - Walker.departureChance(walked: 20, stay: 120))
+            * (1 - Walker.departureChance(walked: 30, stay: 120))
+        XCTAssertEqual(whole, split, accuracy: 0.0001)
+        XCTAssertEqual(Walker.departureChance(walked: 0, stay: 120), 0)
+    }
+
+    func testReachingEdgeRightAfterLandingRarelyLeaves() {
+        let draw = UInt64(0.1 * Double(1 << 53)) << 11
+        var walker = Walker(x: 990, direction: 1, randomNumberGenerator: FixedRandom(value: draw))
+        walker.advance(seconds: 1, width: 1_000)
+        XCTAssertEqual(walker.direction, -1)
+        XCTAssertLessThan(walker.x, 1_000)
+        walker.advance(seconds: 1_000 / walker.speed, width: 1_000)
+        walker.advance(seconds: Walker.offstageMargin / walker.speed + 0.1, width: 1_000)
+        XCTAssertTrue(walker.isOffstage)
     }
 
     func testWalkingSpeedScalesWithLoad() {
